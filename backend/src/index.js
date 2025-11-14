@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./database/connection');
+const { apiLimiter } = require('./utils/rateLimiter');
 
 // Load environment variables
 dotenv.config();
@@ -13,6 +14,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
 
 // Connect to Database
 connectDB();

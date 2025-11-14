@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const { authLimiter } = require('../utils/rateLimiter');
 
 /**
  * @route   POST /api/auth/login
  * @desc    Login user
  * @access  Public
  */
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 

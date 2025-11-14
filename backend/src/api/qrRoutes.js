@@ -4,6 +4,7 @@ const qrCodeService = require('../services/qrCodeService');
 const llmService = require('../llm/llmService');
 const QRCode = require('../models/QRCode');
 const DataRecord = require('../models/DataRecord');
+const { scanLimiter } = require('../utils/rateLimiter');
 
 /**
  * @route   POST /api/qr/generate
@@ -124,7 +125,7 @@ router.get('/:qrId', async (req, res) => {
  * @desc    Record a QR code scan
  * @access  Public
  */
-router.post('/:qrId/scan', async (req, res) => {
+router.post('/:qrId/scan', scanLimiter, async (req, res) => {
   try {
     const { scannedBy, deviceId } = req.body;
     
