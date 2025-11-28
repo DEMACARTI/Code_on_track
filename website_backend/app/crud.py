@@ -1,20 +1,184 @@
 """
 Database CRUD operations for the IRF QR tracking system.
 """
-from typing import Optional, List, Dict, Any, Union
-from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any, Tuple, Union
+from datetime import datetime, timezone, UTC, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_
+import uuid
 
 from . import models, schemas
 
-def get_item(db: Session, item_id: int) -> Optional[models.Item]:
-    """Get an item by ID."""
-    return db.query(models.Item).filter(models.Item.id == item_id).first()
+# User operations
+def get_user_by_username(db: Session, username: str) -> Optional[models.User]:
+    """Get a user by username."""
+    return db.query(models.User).filter(models.User.username == username).first()
+
+def create_user(db: Session, user: schemas.UserCreate) -> models.User:
+    """Create a new user."""
+    # TODO: Hash password before storing
+    db_user = models.User(
+        username=user.username,
+        hashed_password=user.password  # In production, hash this password
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+# Vendor operations
+def create_vendor(db: Session, vendor: schemas.VendorCreate) -> models.Vendor:
+    """Create a new vendor."""
+    db_vendor = models.Vendor(**vendor.dict())
+    db.add(db_vendor)
+    db.commit()
+    db.refresh(db_vendor)
+    return db_vendor
+
+def get_vendor(db: Session, vendor_id: int) -> Optional[models.Vendor]:
+    """Get a vendor by ID."""
+    return db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+
+def list_vendors(db: Session, skip: int = 0, limit: int = 100) -> List[models.Vendor]:
+    """List all vendors with pagination."""
+    return db.query(models.Vendor).offset(skip).limit(limit).all()
+
+# Item operations
+def create_item(db: Session, item: schemas.ItemCreate) -> models.Item:
+    """Create a new item."""
+    db_item = models.Item(**item.dict(exclude={'quantity'}))
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
 def get_item_by_uid(db: Session, uid: str) -> Optional[models.Item]:
     """Get an item by its UID."""
     return db.query(models.Item).filter(models.Item.uid == uid).first()
+
+def list_items(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    filters: Optional[Dict[str, Any]] = None
+) -> Tuple[List[models.Item], int]:
+    """List items with optional filtering and pagination."""
+    query = db.query(models.Item)
+    
+    if filters:
+        for field, value in filters.items():
+            if hasattr(models.Item, field):
+                if isinstance(value, list):
+                    query = query.filter(getattr(models.Item, field).in_(value))
+                else:
+                    query = query.filter(getattr(models.Item, field) == value)
+    
+    total = query.count()
+    items = query.offset(skip).limit(limit).all()
+    return items, total
+
+def update_item_status(
+    db: Session,
+    uid: str,
+    new_status: schemas.ItemStatus,
+    metadata: Optional[Dict[str, Any]] = None
+) -> Optional[models.Item]:
+    """Update an item's status and metadata."""
+    db_item = get_item_by_uid(db, uid)
+    if db_item:
+        db_item.current_status = new_status
+        if metadata:
+            db_item.metadata = metadata
+        db_item.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(db_item)
+    return db_item
+
+# Event operations
+def create_event(db: Session, event: schemas.EventCreate) -> models.Event:
+    """Create a new event."""
+    db_event = models.Event(**event.dict())
+    db.add(db_event)
+    db.commit()
+    db.refresh(db_event)
+    return db_event
+
+def list_events_for_item(db: Session, uid: str) -> List[models.Event]:
+    """List all events for a specific item."""
+    return db.query(models.Event).filter(
+        models.Event.item_uid == uid
+    ).order_by(models.Event.created_at.desc()).all()
+
+# Engrave job operations
+def upsert_engrave_job(
+    db: Session,
+    job_id: str,
+    item_id: int,
+    status: schemas.EngraveJobStatus,
+    message: Optional[str] = None,
+    log_entry: Optional[str] = None
+) -> models.EngraveJob:
+    """Create or update an engraving job."""
+    db_job = db.query(models.EngraveJob).filter(
+        models.EngraveJob.job_id == job_id
+    ).first()
+    
+    # Include message in logs if provided
+    log_message = f"{message}: {log_entry}" if message and log_entry else message or log_entry or 'Job created'
+    
+    if db_job:
+        db_job.status = status
+        if log_message:
+            db_job.logs = f"{db_job.logs or ''}\n{datetime.now(UTC)}: {log_message}"
+        db_job.updated_at = datetime.utcnow()
+    else:
+        db_job = models.EngraveJob(
+            job_id=job_id,
+            item_id=item_id,
+            status=status,
+            logs=f"{datetime.now(UTC)}: {log_message}"
+        )
+        db.add(db_job)
+    
+    db.commit()
+    db.refresh(db_job)
+    return db_job
+
+def get_engrave_job_by_jobid(db: Session, job_id: str) -> Optional[models.EngraveJob]:
+    """Get an engraving job by its job ID."""
+    return db.query(models.EngraveJob).filter(
+        models.EngraveJob.job_id == job_id
+    ).first()
+
+def list_recent_engrave_jobs(
+    db: Session, 
+    limit: int = 50
+) -> List[models.EngraveJob]:
+    """List recent engraving jobs."""
+    return db.query(models.EngraveJob).order_by(
+        models.EngraveJob.updated_at.desc()
+    ).limit(limit).all()
+
+# Inspection operations
+def create_inspection(
+    db: Session, 
+    inspection: schemas.InspectionCreate
+) -> models.Inspection:
+    """Create a new inspection record."""
+    db_inspection = models.Inspection(**inspection.dict())
+    db.add(db_inspection)
+    db.commit()
+    db.refresh(db_inspection)
+    return db_inspection
+
+def list_inspections_for_item(
+    db: Session, 
+    uid: str
+) -> List[models.Inspection]:
+    """List all inspections for a specific item."""
+    return db.query(models.Inspection).filter(
+        models.Inspection.item_uid == uid
+    ).order_by(models.Inspection.created_at.desc()).all()
 
 def get_items(
     db: Session, 

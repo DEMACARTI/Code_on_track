@@ -2,57 +2,115 @@
 Pydantic models for request/response validation.
 """
 from datetime import datetime
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, EmailStr
-from .models import ItemStatus, EventType, EngraveJobStatus, UserRole
+from enum import Enum
+from typing import Optional, List, Dict, Any, ClassVar
+from pydantic import BaseModel, EmailStr, Field, HttpUrl, ConfigDict, validator
 
-# Shared properties
-class ItemBase(BaseModel):
-    uid: str = Field(..., description="Unique identifier for the item")
-    name: str = Field(..., max_length=255, description="Name of the item")
-    description: Optional[str] = Field(None, description="Item description")
-    status: ItemStatus = Field(ItemStatus.IN_STOCK, description="Current status of the item")
-    vendor_id: Optional[int] = Field(None, description="ID of the vendor")
-    purchase_date: Optional[datetime] = Field(None, description="Date when the item was purchased")
-    warranty_expiry: Optional[datetime] = Field(None, description="Warranty expiration date")
-    location: Optional[str] = Field(None, max_length=255, description="Current location of the item")
+# Enums
+class ItemStatus(str, Enum):
+    MANUFACTURED = "manufactured"
+    SUPPLIED = "supplied"
+    INSTALLED = "installed"
+    INSPECTED = "inspected"
+    PERFORMANCE = "performance"
+    REPLACED = "replaced"
 
-# Properties to receive on item creation
-class ItemCreate(ItemBase):
-    pass
+class EventType(str, Enum):
+    STATUS_CHANGE = "status_change"
+    MAINTENANCE = "maintenance"
+    REPAIR = "repair"
+    OTHER = "other"
 
-# Properties to receive on item update
-class ItemUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=255, description="Name of the item")
-    description: Optional[str] = Field(None, description="Item description")
-    status: Optional[ItemStatus] = Field(None, description="Current status of the item")
-    vendor_id: Optional[int] = Field(None, description="ID of the vendor")
-    purchase_date: Optional[datetime] = Field(None, description="Date when the item was purchased")
-    warranty_expiry: Optional[datetime] = Field(None, description="Warranty expiration date")
-    location: Optional[str] = Field(None, max_length=255, description="Current location of the item")
+class EngraveJobStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    ENGRAVING = "engraving"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
-# Properties shared by models stored in DB
-class ItemInDBBase(ItemBase):
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    VIEWER = "viewer"
+
+class InspectionResult(str, Enum):
+    PASS = "pass"
+    FAIL = "fail"
+    CONDITIONAL = "conditional"
+
+# User schemas
+class UserBase(BaseModel):
+    username: str
+
+class UserCreate(UserBase):
+    password: str
+
+class UserRead(UserBase):
     id: int
     created_at: datetime
-    updated_at: datetime
 
-    class Config:
-        orm_mode = True
-
-# Properties to return to client
-class Item(ItemInDBBase):
-    pass
+    model_config = ConfigDict(from_attributes=True)
 
 # Vendor schemas
 class VendorBase(BaseModel):
-    name: str = Field(..., max_length=255, description="Name of the vendor")
-    contact_email: Optional[EmailStr] = Field(None, description="Contact email for the vendor")
-    phone: Optional[str] = Field(None, max_length=50, description="Contact phone number")
-    address: Optional[str] = Field(None, description="Physical address of the vendor")
+    name: str
+    contact_email: Optional[EmailStr] = None
+    contact_phone: Optional[str] = None
+    address: Optional[str] = None
 
 class VendorCreate(VendorBase):
     pass
+
+class VendorRead(VendorBase):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Item schemas
+class ItemBase(BaseModel):
+    component_type: str
+    lot_number: str
+    vendor_id: int
+    warranty_years: int
+    manufacture_date: datetime
+    metadata: Optional[Dict[str, Any]] = None
+
+class ItemCreate(ItemBase):
+    quantity: int = Field(gt=0, default=1)
+
+class ItemUpdate(BaseModel):
+    component_type: Optional[str] = None
+    lot_number: Optional[str] = None
+    vendor_id: Optional[int] = None
+    warranty_years: Optional[int] = None
+    manufacture_date: Optional[datetime] = None
+    metadata: Optional[Dict[str, Any]] = None
+    current_status: Optional[ItemStatus] = None
+    qr_png_url: Optional[str] = None
+    qr_svg_url: Optional[str] = None
+
+class ItemRead(ItemBase):
+    id: int
+    uid: str
+    current_status: ItemStatus
+    qr_png_url: Optional[str] = None
+    qr_svg_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Event schemas
+class EventCreate(BaseModel):
+    item_uid: str
+    event_type: EventType
+    metadata: Optional[Dict[str, Any]] = None
+
+class EventRead(EventCreate):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 class VendorUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=255, description="Name of the vendor")
@@ -65,93 +123,62 @@ class Vendor(VendorBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
-
-# Event schemas
-class EventBase(BaseModel):
-    event_type: EventType = Field(..., description="Type of event")
-    description: Optional[str] = Field(None, description="Event description")
-    created_by: str = Field(..., description="Username of who created the event")
-    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional event data")
-
-class EventCreate(EventBase):
-    item_id: int = Field(..., description="ID of the item this event is for")
-
-class Event(EventBase):
-    id: int
-    item_id: int
-    created_at: datetime
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Engrave job schemas
 class EngraveJobBase(BaseModel):
-    job_id: str = Field(..., description="External job ID from the engraving service")
-    status: EngraveJobStatus = Field(EngraveJobStatus.PENDING, description="Current status of the job")
-    logs: Optional[str] = Field(None, description="Logs from the engraving process")
+    status: EngraveJobStatus = Field(default=EngraveJobStatus.PENDING, description="Current status of the engraving job")
+    message: Optional[str] = Field(None, description="Status message or error details")
+    logs: Optional[str] = Field(None, description="Detailed logs of the engraving process")
 
 class EngraveJobCreate(EngraveJobBase):
     item_id: int = Field(..., description="ID of the item being engraved")
+
+class EngraveJobRead(EngraveJobBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 class EngraveJobUpdate(BaseModel):
     status: Optional[EngraveJobStatus] = Field(None, description="Updated status of the job")
     logs: Optional[str] = Field(None, description="Additional logs to append")
 
-class EngraveJob(EngraveJobBase):
-    id: int
-    item_id: int
-    created_at: datetime
-    updated_at: datetime
+# Inspection schemas
+class InspectionCreate(BaseModel):
+    item_uid: str
+    inspector: str
+    result: InspectionResult
+    comments: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
-    class Config:
-        orm_mode = True
-
-# User schemas
-class UserBase(BaseModel):
-    username: str = Field(..., max_length=50, description="Unique username")
-    email: EmailStr = Field(..., description="Email address")
-    full_name: Optional[str] = Field(None, max_length=255, description="User's full name")
-    role: UserRole = Field(UserRole.VIEWER, description="User role")
-    is_active: bool = Field(True, description="Whether the user is active")
-
-class UserCreate(UserBase):
-    password: str = Field(..., min_length=8, description="Password")
-
-class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = Field(None, description="Email address")
-    full_name: Optional[str] = Field(None, max_length=255, description="User's full name")
-    role: Optional[UserRole] = Field(None, description="User role")
-    is_active: Optional[bool] = Field(None, description="Whether the user is active")
-    password: Optional[str] = Field(None, min_length=8, description="New password")
-
-class UserInDBBase(UserBase):
+class InspectionRead(InspectionCreate):
     id: int
     created_at: datetime
-    updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
-class User(UserInDBBase):
-    pass
 
-class UserInDB(UserInDBBase):
-    hashed_password: str
+# Response wrappers
+class ItemsList(BaseModel):
+    items: List[ItemRead]
+    total: int
 
-# Auth schemas
+    model_config = ConfigDict(from_attributes=True)
+
+# Auth schemas (simplified)
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
     username: Optional[str] = None
-    scopes: List[str] = []
 
-# Dashboard schemas
 class DashboardSummary(BaseModel):
-    total_items: int
-    items_by_status: Dict[str, int]
-    warranty_expiring_soon: int
-    vendor_fail_rates: Dict[str, float]
+    total_items: int = 0
+    items_by_status: Dict[str, int] = {}
+    warranty_expiring_soon: List[ItemRead] = []
+    recent_failures: List[Dict[str, Any]] = []
+
+    model_config = ConfigDict(from_attributes=True)
