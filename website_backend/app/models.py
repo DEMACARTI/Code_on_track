@@ -1,8 +1,9 @@
 """
 Database models for the IRF QR tracking system.
 """
+from sqlalchemy.dialects.postgresql import JSON
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Text, JSON, Boolean
 from sqlalchemy.orm import relationship
 from .database import Base
 import enum
@@ -32,6 +33,7 @@ class Item(Base):
     vendor = relationship("Vendor", back_populates="items")
     events = relationship("Event", back_populates="item")
     engrave_jobs = relationship("EngraveJob", back_populates="item")
+    inspections = relationship("Inspection", back_populates="item")
 
 class Vendor(Base):
     __tablename__ = "vendors"
@@ -63,7 +65,7 @@ class Event(Base):
     description = Column(Text, nullable=True)
     created_by = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    metadata = Column(JSON, nullable=True)  # Store additional event data as JSON
+    event_metadata = Column(JSON, nullable=True)  # Store additional event data as JSON
 
     item = relationship("Item", back_populates="events")
 
@@ -90,6 +92,26 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     TECHNICIAN = "technician"
     VIEWER = "viewer"
+
+class InspectionResult(str, enum.Enum):
+    PASS = "pass"
+    FAIL = "fail"
+    CONDITIONAL = "conditional"
+
+class Inspection(Base):
+    __tablename__ = "inspections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    item_uid = Column(String(128), ForeignKey("items.uid"), nullable=False)
+    inspector = Column(String(255), nullable=False)
+    result = Column(Enum(InspectionResult), nullable=False)
+    comments = Column(Text, nullable=True)
+    inspection_metadata = Column(JSON, nullable=True)  # Store additional inspection data as JSON
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship with Item
+    item = relationship("Item", back_populates="inspections")
 
 class User(Base):
     __tablename__ = "users"

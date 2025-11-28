@@ -15,13 +15,13 @@ from ..utils.security import (
     create_access_token,
     get_current_active_user,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    get_user_by_username,
+    get_password_hash
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-@router.post("/token", response_model=schemas.Token)
-async def login_for_access_token(
+@router.post("/login", response_model=schemas.Token, status_code=status.HTTP_200_OK)
+async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ) -> Any:
@@ -49,48 +49,16 @@ async def login_for_access_token(
     
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.get("/me/", response_model=schemas.User)
-async def read_users_me(
+@router.get("/me", response_model=schemas.UserRead)
+async def get_current_user_info(
     current_user: models.User = Depends(get_current_active_user)
-) -> Any:
+):
     """
     Get the current user's profile.
     
     Returns the profile of the currently authenticated user.
     """
     return current_user
-
-@router.post("/register", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
-def register_user(
-    user: schemas.UserCreate,
-    db: Session = Depends(get_db)
-) -> Any:
-    """
-    Register a new user.
-    
-    - **username**: Unique username
-    - **email**: User's email address
-    - **password**: Password (min 8 characters)
-    - **full_name**: User's full name (optional)
-    - **role**: User role (default: viewer)
-    
-    Returns the created user profile.
-    """
-    db_user = get_user_by_username(db, username=user.username)
-    if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
-    
-    db_email = crud.get_user_by_email(db, email=user.email)
-    if db_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    return crud.create_user(db=db, user=user)
 
 @router.get("/verify-token")
 async def verify_token(

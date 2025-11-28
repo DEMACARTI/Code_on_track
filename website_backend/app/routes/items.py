@@ -1,196 +1,175 @@
 """
-Item routes for the IRF QR tracking system.
+Items API endpoints for managing railway components.
+
+Example curl commands:
+
+# Create a single item
+curl -X POST "http://localhost:8000/api/items" \
+  -H "Content-Type: application/json" \
+  -d '{"component_type": "Bearing", "lot_number": "LOT123", "vendor_id": 1, "warranty_years": 2, "manufacture_date": "2023-01-15T00:00:00", "quantity": 1}'
+
+# Create multiple items
+curl -X POST "http://localhost:8000/api/items" \
+  -H "Content-Type: application/json" \
+  -d '{"component_type": "Bolt", "lot_number": "BOLT456", "vendor_id": 2, "warranty_years": 5, "manufacture_date": "2023-01-15T00:00:00", "quantity": 10}'
+
+# List items with filters
+curl "http://localhost:8000/api/items?component_type=Bearing&limit=5"
+
+# Get item by UID
+curl "http://localhost:8000/api/items/ABC123"
+
+# Update item status
+curl -X PATCH "http://localhost:8000/api/items/ABC123/status" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "installed", "metadata": {"location": "Engine Bay 1"}}'
 """
+
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+import logging
 
 from .. import models, schemas, crud
 from ..database import get_db
 from ..utils.security import get_current_active_user
 
-router = APIRouter()
+router = APIRouter(prefix="/api/items", tags=["Items"])
+logger = logging.getLogger(__name__)
 
-@router.post("/", response_model=schemas.Item, status_code=status.HTTP_201_CREATED)
-def create_item(
+class ItemStatusUpdate(schemas.BaseModel):
+    status: schemas.ItemStatus
+    metadata: Optional[dict] = None
+
+@router.post(
+    "/",
+    response_model=schemas.ItemsList,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create one or more items"
+)
+def create_items(
     item: schemas.ItemCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
     """
-    Create a new item.
+    Create one or more items.
     
-    - **uid**: Unique identifier for the item (required)
-    - **name**: Name of the item (required)
-    - **description**: Optional description
-    - **status**: Item status (default: in_stock)
-    - **vendor_id**: ID of the vendor (optional)
-    - **purchase_date**: When the item was purchased (optional)
-    - **warranty_expiry**: When the warranty expires (optional)
-    - **location**: Current location of the item (optional)
-    
-    Returns the created item.
+    - If quantity = 1, returns a single item in the list
+    - If quantity > 1, creates multiple items with sequential UIDs
     """
-    # Check if UID already exists
-    db_item = crud.get_item_by_uid(db, uid=item.uid)
-    if db_item:
+    if item.quantity < 1:
         raise HTTPException(
-            status_code=400,
-            detail="Item with this UID already exists"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Quantity must be at least 1"
         )
     
-    # If vendor_id is provided, verify it exists
-    if item.vendor_id is not None:
-        db_vendor = crud.get_vendor(db, vendor_id=item.vendor_id)
-        if not db_vendor:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Vendor with ID {item.vendor_id} not found"
-            )
+    created_items = []
+    for _ in range(item.quantity):
+        db_item = crud.create_item(db=db, item=item)
+        created_items.append(db_item)
     
-    # Create the item
-    return crud.create_item(db=db, item=item)
+    logger.info(f"Created {len(created_items)} items")
+    return {
+        "items": created_items,
+        "total": len(created_items)
+    }
 
-@router.get("/", response_model=List[schemas.Item])
-def read_items(
+@router.get(
+    "/",
+    response_model=schemas.ItemsList,
+    summary="List items with optional filtering"
+)
+def list_items(
     skip: int = 0,
-    limit: int = 100,
-    status: Optional[models.ItemStatus] = None,
+    limit: int = 50,
+    component_type: Optional[str] = None,
     vendor_id: Optional[int] = None,
+    status: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
     """
-    Get a list of items with optional filtering.
-    
-    - **skip**: Number of items to skip (pagination)
-    - **limit**: Maximum number of items to return (pagination)
-    - **status**: Filter by item status
-    - **vendor_id**: Filter by vendor ID
-    
-    Returns a list of items.
+    List items with pagination and filtering.
     """
-    items = crud.get_items(
-        db, 
-        skip=skip, 
-        limit=limit, 
-        status=status,
-        vendor_id=vendor_id
+    filters = {}
+    if component_type:
+        filters["component_type"] = component_type
+    if vendor_id:
+        filters["vendor_id"] = vendor_id
+    if status:
+        filters["current_status"] = status
+    
+    items, total = crud.list_items(
+        db=db,
+        skip=skip,
+        limit=min(limit, 100),  # Cap limit at 100
+        filters=filters
     )
-    return items
+    
+    return {
+        "items": items,
+        "total": total
+    }
 
-@router.get("/{item_id}", response_model=schemas.Item)
-def read_item(
-    item_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """
-    Get a specific item by ID.
-    
-    - **item_id**: ID of the item to retrieve
-    
-    Returns the item details.
-    """
-    db_item = crud.get_item(db, item_id=item_id)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return db_item
-
-@router.put("/{item_id}", response_model=schemas.Item)
-def update_item(
-    item_id: int,
-    item_update: schemas.ItemUpdate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """
-    Update an existing item.
-    
-    - **item_id**: ID of the item to update
-    - **name**: New name for the item (optional)
-    - **description**: New description (optional)
-    - **status**: New status (optional)
-    - **vendor_id**: New vendor ID (optional)
-    - **purchase_date**: New purchase date (optional)
-    - **warranty_expiry**: New warranty expiry date (optional)
-    - **location**: New location (optional)
-    
-    Returns the updated item.
-    """
-    db_item = crud.get_item(db, item_id=item_id)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    
-    # If updating vendor_id, verify it exists
-    if item_update.vendor_id is not None:
-        db_vendor = crud.get_vendor(db, vendor_id=item_update.vendor_id)
-        if not db_vendor:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Vendor with ID {item_update.vendor_id} not found"
-            )
-    
-    return crud.update_item(db=db, db_item=db_item, item_update=item_update)
-
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_item(
-    item_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    """
-    Delete an item.
-    
-    - **item_id**: ID of the item to delete
-    
-    Returns 204 No Content on success.
-    """
-    db_item = crud.get_item(db, item_id=item_id)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    
-    crud.delete_item(db=db, item_id=item_id)
-    return None
-
-@router.get("/uid/{uid}", response_model=schemas.Item)
-def read_item_by_uid(
+@router.get(
+    "/{uid}",
+    response_model=schemas.ItemRead,
+    responses={
+        404: {"description": "Item not found"}
+    },
+    summary="Get item by UID"
+)
+def get_item(
     uid: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
     """
-    Get an item by its UID.
-    
-    - **uid**: UID of the item to retrieve
-    
-    Returns the item details.
+    Get a single item by its UID.
     """
     db_item = crud.get_item_by_uid(db, uid=uid)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
+    if not db_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Item with UID {uid} not found"
+        )
     return db_item
 
-@router.get("/{item_id}/events", response_model=List[schemas.Event])
-def get_item_events(
-    item_id: int,
-    skip: int = 0,
-    limit: int = 100,
+@router.patch(
+    "/{uid}/status",
+    response_model=schemas.ItemRead,
+    responses={
+        400: {"description": "Invalid status or metadata"},
+        404: {"description": "Item not found"}
+    },
+    summary="Update item status"
+)
+def update_status(
+    uid: str,
+    status_update: ItemStatusUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
     """
-    Get events for a specific item.
-    
-    - **item_id**: ID of the item
-    - **skip**: Number of events to skip (pagination)
-    - **limit**: Maximum number of events to return (pagination)
-    
-    Returns a list of events for the item.
+    Update an item's status and optional metadata.
     """
     # Verify item exists
-    db_item = crud.get_item(db, item_id=item_id)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
+    db_item = crud.get_item_by_uid(db, uid=uid)
+    if not db_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Item with UID {uid} not found"
+        )
     
-    return crud.get_events_for_item(db, item_id=item_id, skip=skip, limit=limit)
+    # Update status
+    updated_item = crud.update_item_status(
+        db=db,
+        uid=uid,
+        new_status=status_update.status,
+        metadata=status_update.metadata
+    )
+    
+    logger.info(f"Updated status for item {uid} to {status_update.status}")
+    return updated_item
+
