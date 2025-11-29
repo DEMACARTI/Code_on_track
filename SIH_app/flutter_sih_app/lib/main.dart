@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
     // final qrService = RestQRScanService(baseUrl: backendBaseUrl);
 
     return MaterialApp(
-      title: 'Rail Chinh',
+      title: 'Rail_Chinh',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
