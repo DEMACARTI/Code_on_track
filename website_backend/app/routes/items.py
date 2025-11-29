@@ -34,7 +34,7 @@ from .. import models, schemas, crud
 from ..database import get_db
 from ..utils.security import get_current_active_user
 
-router = APIRouter(prefix="/api/items", tags=["Items"])
+router = APIRouter(prefix="/items", tags=["Items"])
 logger = logging.getLogger(__name__)
 
 class ItemStatusUpdate(schemas.BaseModel):

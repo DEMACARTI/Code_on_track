@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any
 import os
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,13 @@ from typing import Optional
 
 def get_user_by_username(db: Session, username: str) -> Optional[models.User]:
     """Get a user by username."""
-    return db.query(models.User).filter(models.User.username == username).first()
+    if hasattr(db, 'query'):
+        # It's a session object
+        return db.query(models.User).filter(models.User.username == username).first()
+    else:
+        # It's a context manager, get the session first
+        with db as session:
+            return session.query(models.User).filter(models.User.username == username).first()
 
 # Password hashing
 pwd_context = CryptContext(
@@ -82,6 +88,17 @@ async def get_current_active_user(
     """Get the current active user."""
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+async def get_current_active_superuser(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    """Get the current active superuser."""
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges"
+        )
     return current_user
 
 def authenticate_user(db: Session, username: str, password: str) -> Optional[models.User]:

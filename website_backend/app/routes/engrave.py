@@ -7,144 +7,242 @@ Example curl commands:
 curl -X POST "http://localhost:8000/api/engrave/callback" \
   -H "Content-Type: application/json" \
   -H "X-API-KEY: your_api_key_here" \
-  -d '{"job_id": "job123", "uid": "ABC123", "status": "completed", "message": "Engraving successful"}'
+  -d '{"job_id": "job123", "item_uid": "ABC123", "status": "completed", "message": "Engraving successful"}'
 
-# Get job by ID
-curl -H "X-API-KEY: your_api_key_here" \
-  "http://localhost:8000/api/engrave/job/job123"
+# Get job by ID (requires authentication)
+curl -H "Authorization: Bearer your_jwt_token" \
+  "http://localhost:8000/api/engrave/jobs/job123"
 
-# Get latest job by UID
-curl -H "X-API-KEY: your_api_key_here" \
-  "http://localhost:8000/api/engrave/uid/ABC123"
-
-# List recent jobs
-curl -H "X-API-KEY: your_api_key_here" \
-  "http://localhost:8000/api/engrave/recent?limit=10"
+# List jobs with filters (requires authentication)
+curl -H "Authorization: Bearer your_jwt_token" \
+  "http://localhost:8000/api/engrave/jobs/?status=completed&limit=10"
 """
 
-import os
-import time
+from datetime import datetime, timezone
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
-from .. import models, schemas, crud
+from .. import models, schemas
 from ..database import get_db
-from ..utils.security import get_current_active_user
+from ..utils.security import get_current_active_user, verify_api_key
+from ..crud import engrave as crud_engrave
 
-router = APIRouter(prefix="/api/engrave", tags=["Engraving"])
+router = APIRouter(prefix="/api/engrave", tags=["engrave"])
 logger = logging.getLogger(__name__)
 
-# Get API key from environment
-API_KEY = os.getenv("ENGRAVE_API_KEY")
-if not API_KEY:
-    logger.warning("ENGRAVE_API_KEY not set in environment")
-
-async def verify_api_key(api_key: str = Header(..., alias="X-API-KEY")):
-    """Verify the API key for engraving endpoints."""
-    if not API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="API key not configured"
-        )
-    if api_key != API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key"
-        )
-    return api_key
+# Constants
+MAX_LIMIT = 1000
+DEFAULT_LIMIT = 100
 
 @router.post(
     "/callback",
-    response_model=schemas.EngraveJobRead,
+    response_model=schemas.EngraveJob,
     status_code=status.HTTP_200_OK,
-    summary="Update engraving job status (callback)",
+    summary="Process engraving callback",
+    description="""Handle callbacks from the engraving service with job status updates.
+    This endpoint is idempotent and respects timestamp ordering.""",
     responses={
+        200: {"description": "Job processed successfully"},
+        400: {"description": "Invalid request data"},
         401: {"description": "Invalid or missing API key"},
-        400: {"description": "Invalid request data"}
+        500: {"description": "Internal server error"}
     }
 )
-async def engrave_callback(
-    job_data: schemas.EngraveJobCreate,
+async def process_engrave_callback(
+    job: schemas.EngraveJobCallback,
     db: Session = Depends(get_db),
-    _: str = Depends(verify_api_key)
-):
+    api_key: str = Depends(verify_api_key)
+) -> schemas.EngraveJob:
     """
-    Callback endpoint for engraving service to update job status.
+    Process a callback from the engraving service.
     
-    This endpoint creates a new engraving job for the specified item.
+    This endpoint is called by the engraving service to update the status of an engraving job.
+    It supports idempotent updates based on job_id and respects timestamp ordering.
     """
-    # Generate a unique job_id using the current timestamp and item_id
-    job_id = f"job_{int(time.time())}_{job_data.item_id}"
-    
-    logger.info(f"Creating engrave job {job_id} for item {job_data.item_id} with status {job_data.status}")
-    
-    # Create the job record using the crud function
-    db_job = crud.upsert_engrave_job(
-        db=db,
-        job_id=job_id,
-        item_id=job_data.item_id,
-        status=job_data.status,
-        message=job_data.message,
-        log_entry=job_data.logs
-    )
-    
-    return db_job
+    try:
+        # Validate and parse timestamp
+        timestamp = None
+        if job.timestamp:
+            try:
+                timestamp = datetime.fromisoformat(job.timestamp.replace('Z', '+00:00'))
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+            except (ValueError, AttributeError) as e:
+                logger.warning(f"Invalid timestamp format: {job.timestamp}, using current time. Error: {str(e)}")
+                timestamp = datetime.now(timezone.utc)
+        
+        # Process the job update
+        db_job, is_new = crud_engrave.upsert_engrave_job(
+            db=db,
+            job_id=job.job_id,
+            item_uid=job.item_uid,
+            status=job.status,
+            message=job.message,
+            timestamp=timestamp
+        )
+        
+        logger.info(
+            f"{'Created' if is_new else 'Updated'} engrave job {job.job_id} "
+            f"for item {job.item_uid} with status {job.status}"
+        )
+        return db_job
+        
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Database error in process_engrave_callback: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error while processing engrave callback"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in process_engrave_callback: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred"
+        )
 
 @router.get(
-    "/job/{job_id}",
-    response_model=schemas.EngraveJobRead,
-    summary="Get engraving job by ID",
+    "/jobs/{job_id}",
+    response_model=schemas.EngraveJob,
+    summary="Get engrave job by ID",
+    description="Retrieve details of a specific engrave job",
     responses={
+        200: {"description": "Job details retrieved successfully"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized to view this job"},
         404: {"description": "Job not found"}
     }
 )
-def get_engrave_job(
+async def get_engrave_job(
     job_id: str,
     db: Session = Depends(get_db),
-    _: str = Depends(verify_api_key)
-):
-    """Get an engraving job by its job ID."""
-    db_job = crud.get_engrave_job_by_jobid(db, job_id=job_id)
-    if not db_job:
+    current_user: models.User = Depends(get_current_active_user)
+) -> schemas.EngraveJob:
+    """
+    Get an engrave job by its ID.
+    
+    Only the user who created the job or an admin can view the job details.
+    """
+    try:
+        db_job = crud_engrave.get_engrave_job(db, job_id=job_id)
+        if not db_job:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Engrave job not found"
+            )
+        
+        # Check permissions
+        if (current_user.role != models.UserRole.ADMIN and 
+            (not db_job.created_by_id or db_job.created_by_id != current_user.id)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to view this job"
+            )
+        
+        return db_job
+        
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_engrave_job: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Engraving job {job_id} not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving job details"
         )
-    return db_job
 
 @router.get(
-    "/uid/{uid}",
-    response_model=schemas.EngraveJobRead,
-    summary="Get latest engraving job by UID",
+    "/jobs/",
+    response_model=List[schemas.EngraveJob],
+    summary="List engrave jobs",
+    description="""List all engrave jobs with optional filtering.
+    Regular users can only see their own jobs, while admins can see all jobs.""",
     responses={
-        404: {"description": "No jobs found for this UID"}
+        200: {"description": "List of jobs retrieved successfully"},
+        400: {"description": "Invalid filter parameters"},
+        401: {"description": "Not authenticated"},
+        403: {"description": "Not authorized to view these jobs"},
+        404: {"description": "Item not found or access denied"}
     }
 )
-def get_latest_job_by_uid(
-    uid: str,
+async def list_engrave_jobs(
+    skip: int = 0,
+    limit: int = DEFAULT_LIMIT,
+    status: Optional[models.EngraveJobStatus] = None,
+    item_uid: Optional[str] = None,
+    orphan: Optional[bool] = None,
     db: Session = Depends(get_db),
-    _: str = Depends(verify_api_key)
-):
-    """Get the most recent engraving job for a given UID."""
-    jobs = crud.list_recent_engrave_jobs(db, limit=1)
-    if not jobs or jobs[0].uid != uid:
+    current_user: models.User = Depends(get_current_active_user)
+) -> List[schemas.EngraveJob]:
+    """
+    List all engrave jobs with optional filtering.
+    
+    Parameters:
+    - skip: Number of records to skip (for pagination)
+    - limit: Maximum number of records to return (capped at 1000)
+    - status: Filter by job status
+    - item_uid: Filter by item UID
+    - orphan: Filter by orphan status (jobs not linked to an existing item)
+    """
+    try:
+        # Validate limit
+        limit = min(max(1, limit), MAX_LIMIT)
+        
+        # For non-admin users, only show their own jobs
+        if current_user.role != models.UserRole.ADMIN:
+            # If filtering by item_uid, verify the user has access to that item
+            if item_uid:
+                item = db.query(models.Item).filter(
+                    models.Item.uid == item_uid,
+                    models.Item.owner_id == current_user.id
+                ).first()
+                if not item:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="Item not found or access denied"
+                    )
+            
+            # Get jobs created by this user
+            query = db.query(models.EngraveJob).filter(
+                models.EngraveJob.created_by_id == current_user.id
+            )
+        else:
+            # Admin can see all jobs
+            query = db.query(models.EngraveJob)
+        
+        # Apply filters
+        if status:
+            query = query.filter(models.EngraveJob.status == status)
+        
+        if item_uid:
+            query = query.join(models.Item).filter(models.Item.uid == item_uid)
+        
+        if orphan is not None:
+            query = query.filter(models.EngraveJob.orphan == orphan)
+        
+        # Apply pagination and ordering
+        jobs = query.order_by(
+            models.EngraveJob.last_timestamp.desc(),
+            models.EngraveJob.id.desc()  # Secondary sort for consistent ordering
+        ).offset(skip).limit(limit).all()
+        
+        return jobs
+        
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in list_engrave_jobs: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No engraving jobs found for UID {uid}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving jobs"
         )
-    return jobs[0]
-
-@router.get(
-    "/recent",
-    response_model=List[schemas.EngraveJobRead],
-    summary="List recent engraving jobs"
-)
-def list_recent_jobs(
-    limit: int = 50,
-    db: Session = Depends(get_db),
-    _: str = Depends(verify_api_key)
-):
-    """List recent engraving jobs, most recent first."""
-    return crud.list_recent_engrave_jobs(db, limit=min(limit, 100))
+    except Exception as e:
+        logger.error(f"Unexpected error in list_engrave_jobs: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred"
+        )

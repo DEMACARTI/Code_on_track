@@ -18,7 +18,7 @@ from ..utils.security import (
     get_password_hash
 )
 
-router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=schemas.Token, status_code=status.HTTP_200_OK)
 async def login(
