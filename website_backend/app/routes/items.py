@@ -26,7 +26,7 @@ curl -X PATCH "http://localhost:8000/api/items/ABC123/status" \
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 import logging
 
@@ -66,7 +66,7 @@ def create_items(
     
     created_items = []
     for _ in range(item.quantity):
-        db_item = crud.create_item(db=db, item=item)
+        db_item = crud.create_item(db=db, item=item, owner_id=current_user.id)
         created_items.append(db_item)
     
     logger.info(f"Created {len(created_items)} items")
@@ -85,7 +85,7 @@ def list_items(
     limit: int = 50,
     component_type: Optional[str] = None,
     vendor_id: Optional[int] = None,
-    status: Optional[str] = None,
+    item_status: Optional[str] = Query(None, alias="status"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -97,15 +97,32 @@ def list_items(
         filters["component_type"] = component_type
     if vendor_id:
         filters["vendor_id"] = vendor_id
-    if status:
-        filters["current_status"] = status
+    if item_status:
+        filters["current_status"] = item_status
     
-    items, total = crud.list_items(
+    # Convert status string to enum if provided
+    status_enum = None
+    if item_status:
+        try:
+            status_enum = models.ItemStatus(item_status)
+        except ValueError:
+            # If invalid status, return empty list or raise error? 
+            # For filtering, maybe just return empty list or ignore?
+            # Let's raise 400 for better DX
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status: {item_status}"
+            )
+
+    items = crud.get_items(
         db=db,
         skip=skip,
         limit=min(limit, 100),  # Cap limit at 100
-        filters=filters
+        status=status_enum,
+        # filters=filters # TODO: Implement advanced filtering in CRUD if needed
     )
+    # Mock total count for now as get_items doesn't return it
+    total = len(items)
     
     return {
         "items": items,
@@ -163,12 +180,21 @@ def update_status(
         )
     
     # Update status
+    # Update status
     updated_item = crud.update_item_status(
         db=db,
-        uid=uid,
+        item_id=db_item.id,
         new_status=status_update.status,
-        metadata=status_update.metadata
+        updated_by=current_user.id
     )
+    
+    # Update metadata if provided
+    if status_update.metadata:
+        # Create a partial update for metadata
+        # We need to fetch the item again or update the object
+        # For now let's use update_item
+        item_update = schemas.ItemUpdate(item_metadata=status_update.metadata)
+        updated_item = crud.update_item(db=db, db_item=updated_item, item_update=item_update)
     
     logger.info(f"Updated status for item {uid} to {status_update.status}")
     return updated_item

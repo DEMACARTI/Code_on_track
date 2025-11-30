@@ -173,14 +173,17 @@ class Vendor(VendorRead):
 
 # Item schemas
 class ItemBase(BaseModel):
+    name: str = Field(..., max_length=100, description="Name of the item")
+    description: Optional[str] = Field(None, description="Description of the item")
+    item_metadata: Optional[Dict[str, Any]] = None
+
+class ItemCreate(ItemBase):
+    uid: Optional[str] = None
     component_type: str
     lot_number: str
     vendor_id: int
     warranty_years: int
     manufacture_date: datetime
-    item_metadata: Optional[Dict[str, Any]] = None
-
-class ItemCreate(ItemBase):
     quantity: int = Field(gt=0, default=1)
 
 class ItemUpdate(BaseModel):
@@ -190,14 +193,14 @@ class ItemUpdate(BaseModel):
     warranty_years: Optional[int] = None
     manufacture_date: Optional[datetime] = None
     item_metadata: Optional[Dict[str, Any]] = None
-    current_status: Optional[ItemStatus] = None
+    status: Optional[ItemStatus] = None
     qr_png_url: Optional[str] = None
     qr_svg_url: Optional[str] = None
 
 class ItemRead(ItemBase):
     id: int
     uid: str
-    current_status: ItemStatus
+    status: ItemStatus
     qr_png_url: Optional[str] = None
     qr_svg_url: Optional[str] = None
     created_at: datetime

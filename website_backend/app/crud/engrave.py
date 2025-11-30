@@ -74,10 +74,6 @@ def update_engrave_job(
         setattr(db_job, field, value)
     
     db_job.updated_at = datetime.utcnow()
-    db.add(db_job)
-    db.commit()
-    db.refresh(db_job)
-    return db_job
     try:
         db.add(db_job)
         db.commit()

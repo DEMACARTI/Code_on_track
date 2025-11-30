@@ -2,6 +2,7 @@
 CRUD operations for Item model.
 """
 from typing import List, Optional, Union
+import uuid
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -92,8 +93,26 @@ def get_items(
 def create_item(db: Session, item: schemas.ItemCreate, owner_id: int) -> models.Item:
     """Create a new item."""
     item_data = item.dict(exclude={"vendor_id"})
-    if 'item_metadata' not in item_data:
-        item_data['item_metadata'] = None
+    
+    # Move schema fields that are not in model to item_metadata
+    extra_fields = ["component_type", "lot_number", "warranty_years", "manufacture_date", "quantity"]
+    metadata = item_data.get("item_metadata") or {}
+    schema_fields = {}
+    
+    for field in extra_fields:
+        if field in item_data:
+            val = item_data.pop(field)
+            # Handle datetime serialization for metadata
+            if field == "manufacture_date" and isinstance(val, datetime):
+                val = val.isoformat()
+            schema_fields[field] = val
+            
+    metadata["schema_fields"] = schema_fields
+    item_data["item_metadata"] = metadata
+    
+    # Generate UID if not present
+    if not item_data.get("uid"):
+        item_data["uid"] = f"ITEM_{uuid.uuid4().hex[:8].upper()}"
     
     db_item = models.Item(
         **item_data,
@@ -127,11 +146,35 @@ def update_item(
     """Update an item's information."""
     update_data = item_update.dict(exclude_unset=True)
     
-    # Handle item_metadata specifically to avoid None overwrites
-    if 'item_metadata' in update_data and update_data['item_metadata'] is None:
-        if db_item.item_metadata is not None:
-            # Only update if the existing value is not None and we're not explicitly setting it to None
-            update_data.pop('item_metadata')
+    # Move schema fields that are not in model to item_metadata
+    extra_fields = ["component_type", "lot_number", "warranty_years", "manufacture_date", "quantity"]
+    
+    # Get current metadata or empty dict
+    current_metadata = dict(db_item.item_metadata) if db_item.item_metadata else {}
+    
+    # Check if we have explicit metadata update
+    if 'item_metadata' in update_data:
+        if update_data['item_metadata'] is not None:
+            current_metadata.update(update_data['item_metadata'])
+        update_data.pop('item_metadata')
+        
+    # Merge extra fields into metadata
+    metadata_updated = False
+    schema_fields = current_metadata.get("schema_fields", {})
+    
+    for field in extra_fields:
+        if field in update_data:
+            val = update_data.pop(field)
+            if field == "manufacture_date" and isinstance(val, datetime):
+                val = val.isoformat()
+            schema_fields[field] = val
+            metadata_updated = True
+            
+    if metadata_updated:
+        current_metadata["schema_fields"] = schema_fields
+            
+    if metadata_updated or 'item_metadata' in item_update.dict(exclude_unset=True):
+        db_item.item_metadata = current_metadata
     
     # Update the updated_at timestamp
     update_data["updated_at"] = datetime.utcnow()

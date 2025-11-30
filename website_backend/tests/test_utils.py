@@ -15,6 +15,7 @@ from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
 from app.main import app
 from app.schemas import ItemCreate, ItemStatus, UserCreate
+from app.utils.security import get_password_hash
 
 # Create test database session factory
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -163,7 +164,7 @@ def test_item(db: Session, test_user: models.User) -> models.Item:
     item_in = ItemCreate(**item_data)
     
     # Create item using the CRUD function
-    db_item = crud.item.create_with_owner(db, obj_in=item_in, owner_id=test_user.id)
+    db_item = crud.create_item(db, item=item_in, owner_id=test_user.id)
     return db_item
 
 @pytest.fixture(scope="function")
@@ -181,7 +182,7 @@ def test_items(db: Session, test_user: models.User) -> List[models.Item]:
             "quantity": 1
         }
         item_in = ItemCreate(**item_data)
-        db_item = crud.item.create_with_owner(db, obj_in=item_in, owner_id=test_user.id)
+        db_item = crud.create_item(db, item=item_in, owner_id=test_user.id)
         items.append(db_item)
     return items
 

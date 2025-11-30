@@ -6,14 +6,12 @@ from typing import Optional, Dict, Any
 import os
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Header, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from sqlalchemy.orm import Session
-from typing import Optional
 
 def get_user_by_username(db: Session, username: str) -> Optional[models.User]:
     """Get a user by username."""
@@ -24,6 +22,14 @@ def get_user_by_username(db: Session, username: str) -> Optional[models.User]:
         # It's a context manager, get the session first
         with db as session:
             return session.query(models.User).filter(models.User.username == username).first()
+
+def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
+    """Get a user by email."""
+    if hasattr(db, 'query'):
+        return db.query(models.User).filter(models.User.email == email).first()
+    else:
+        with db as session:
+            return session.query(models.User).filter(models.User.email == email).first()
 
 # Password hashing
 pwd_context = CryptContext(
@@ -104,6 +110,8 @@ async def get_current_active_superuser(
 def authenticate_user(db: Session, username: str, password: str) -> Optional[models.User]:
     """Authenticate a user with username and password."""
     user = get_user_by_username(db, username)
+    if not user:
+        user = get_user_by_email(db, username)
     if not user:
         return None
     if not verify_password(password, user.hashed_password):
