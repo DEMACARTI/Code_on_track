@@ -16,13 +16,14 @@ from tests.test_utils import random_email, random_lower_string
 client = TestClient(app)
 
 
-def test_get_access_token(client: TestClient) -> None:
+def test_get_access_token(client: TestClient, test_superuser: models.User) -> None:
     """Test successful login and token retrieval."""
     login_data = {
         "username": settings.FIRST_SUPERUSER_EMAIL,
         "password": settings.FIRST_SUPERUSER_PASSWORD,
     }
     r = client.post(f"{settings.API_V1_STR}/auth/login", data=login_data)
+    print(f"Login Response: {r.status_code} {r.text}")
     tokens = r.json()
     assert r.status_code == 200
     assert "access_token" in tokens
@@ -42,14 +43,14 @@ def test_use_access_token(
     assert "email" in result
 
 
-def test_login_incorrect_password(client: TestClient) -> None:
+def test_login_incorrect_password(client: TestClient, test_superuser: models.User) -> None:
     """Test login with incorrect password."""
     login_data = {
         "username": settings.FIRST_SUPERUSER_EMAIL,
         "password": "wrongpassword",
     }
     r = client.post(f"{settings.API_V1_STR}/auth/login", data=login_data)
-    assert r.status_code == 400
+    assert r.status_code == 401
     assert "Incorrect email or password" in r.json()["detail"]
 
 
@@ -57,7 +58,7 @@ def test_login_incorrect_email(client: TestClient) -> None:
     """Test login with non-existent email."""
     login_data = {"username": "nonexistent@example.com", "password": "testpass"}
     r = client.post(f"{settings.API_V1_STR}/auth/login", data=login_data)
-    assert r.status_code == 400
+    assert r.status_code == 401
     assert "Incorrect email or password" in r.json()["detail"]
 
 
@@ -115,7 +116,7 @@ def test_password_recovery(client: TestClient, db: Session) -> None:
         password=password,
         full_name="Test User",
     )
-    user = crud.user.create(db, obj_in=user_in)
+    user = crud.create_user(db, user=user_in)
     
     # Request password recovery
     r = client.post(
@@ -140,10 +141,10 @@ def test_reset_password(client: TestClient, db: Session) -> None:
         password=password,
         full_name="Test User",
     )
-    user = crud.user.create(db, obj_in=user_in)
+    user = crud.create_user(db, user=user_in)
     
     # Generate a password reset token
-    from app.core.security import generate_password_reset_token
+    from app.utils.security import generate_password_reset_token
     token = generate_password_reset_token(email=email)
     
     # Reset password

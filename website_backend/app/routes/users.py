@@ -10,7 +10,7 @@ from .. import models, schemas, crud
 from ..database import get_db
 from ..utils.security import get_current_active_user, get_current_active_superuser
 
-router = APIRouter(prefix="/api/users", tags=["Users"])
+router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.post(
     "",
@@ -34,7 +34,7 @@ async def create_user(
     Returns the created user (without password hash).
     """
     # Check if user with this email already exists
-    db_user = crud.user.get_by_email(db, email=user_in.email)
+    db_user = crud.user.get_user_by_email(db, email=user_in.email)
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -42,7 +42,7 @@ async def create_user(
         )
     
     # Create the user
-    return crud.user.create(db, obj_in=user_in)
+    return crud.user.create_user(db, user=user_in)
 
 @router.get(
     "",
@@ -62,7 +62,7 @@ async def read_users(
     
     Returns a list of users (without password hashes).
     """
-    users = crud.user.get_multi(db, skip=skip, limit=limit)
+    users = crud.user.get_users(db, skip=skip, limit=limit)
     return users
 
 @router.get(
@@ -99,14 +99,14 @@ async def update_user_me(
     """
     # Don't allow updating to an existing email
     if user_in.email and user_in.email != current_user.email:
-        db_user = crud.user.get_by_email(db, email=user_in.email)
+        db_user = crud.user.get_user_by_email(db, email=user_in.email)
         if db_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
     
-    return crud.user.update(db, db_obj=current_user, obj_in=user_in)
+    return crud.user.update_user(db, db_user=current_user, user_update=user_in)
 
 @router.delete(
     "/{user_id}",
@@ -124,12 +124,12 @@ async def delete_user(
     
     Returns 204 No Content on success.
     """
-    user = crud.user.get(db, id=user_id)
+    user = crud.user.get_user(db, user_id=user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     
-    crud.user.remove(db, id=user_id)
+    crud.user.delete_user(db, user_id=user_id)
     return None
