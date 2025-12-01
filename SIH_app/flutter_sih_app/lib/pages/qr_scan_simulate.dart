@@ -151,7 +151,7 @@ class _QRScanSimulatePageState extends State<QRScanSimulatePage> {
                           ),
                           DropdownMenuItem(
                             value: 'fully_damaged',
-                            child: Text('Fully damaged'),
+                            child: Text('To be repaired'),
                           ),
                         ],
                         onChanged: (v) {
