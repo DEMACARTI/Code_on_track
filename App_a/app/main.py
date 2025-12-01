@@ -49,6 +49,11 @@ class ItemCreateReq(BaseModel):
     warranty_years: int = 0
     manufacture_date: str = None
     metadata: dict = None
+    qr_size: str = Field(
+        ..., 
+        description="QR code size (options: '250x250', '125x125', '100x100', '50x50')",
+        regex="^(250x250|125x125|100x100|50x50)$"
+    )
 
 class EngraveRequest(BaseModel):
     uid: str
@@ -101,7 +106,16 @@ def create_items(payload: ItemCreateReq, db: Session = Depends(get_db)):
 
         # Generate QR
         qr_payload = f"http://localhost:8000/scan/{item.uid}"
-        qr = qrcode.QRCode(box_size=10, border=4, error_correction=qrcode.constants.ERROR_CORRECT_M)
+        qr = qrcode.QRCode(
+            box_size={
+                "250x250": 10,
+                "125x125": 5,
+                "100x100": 4,
+                "50x50": 2
+            }[payload.qr_size],
+            border=4,
+            error_correction=qrcode.constants.ERROR_CORRECT_M
+        )
         qr.add_data(qr_payload)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")

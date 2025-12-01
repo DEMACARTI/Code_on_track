@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://irf_user:irf_pass@localhost:5432/irf_dev")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:alqawwiy@localhost:5434/irf_dev")
 
 # echo=True will show SQL logs; keep False for now
 engine = create_engine(DATABASE_URL, echo=False, future=True)

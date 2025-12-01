@@ -3,13 +3,15 @@ import time
 import requests
 import serial
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from rq import get_current_job
 from sqlalchemy.orm import Session
 from .models import EngravingStatus, EngravingQueue, EngravingHistory
 from .database import SessionLocal
 from .engraving_queue import EngravingQueueManager
+import qrcode
+import uuid
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,12 +39,17 @@ class EngravingWorker:
                 "Starting engraving process"
             )
             
-            svg_data = self._download_svg(job.svg_url)
-            if not svg_data:
-                raise Exception(f"Failed to download SVG from {job.svg_url}")
-            
+            # Assuming the job contains a G-code file URL instead of an SVG
+            gcode_data = self._download_svg(job.svg_url)  # Reusing the download method for G-code
+            if not gcode_data:
+                raise Exception(f"Failed to download G-code from {job.svg_url}")
+
             self._connect_serial()
-            self._send_svg_to_arduino(svg_data)
+            
+            # Update GRBL settings for max travel dimensions
+            self._update_grbl_settings()
+            
+            self._send_gcode_to_arduino(gcode_data)
             self._wait_for_engraving_completion(job_id)
             
             self.queue_manager.update_job_status(
@@ -125,6 +132,45 @@ class EngravingWorker:
             logger.error(f"Error sending to Arduino: {str(e)}")
             raise
     
+    def _send_gcode_to_arduino(self, gcode_data: str):
+        """Send G-code commands to the Arduino via GRBL."""
+        if not self.serial_connection or not self.serial_connection.is_open:
+            raise Exception("No serial connection")
+
+        try:
+            logger.info("Sending G-code to Arduino")
+
+            for line in gcode_data.splitlines():
+                command = line.strip()
+                if command:
+                    response = self._send_command(command)
+                    logger.debug(f"Command: {command}, Response: {response}")
+
+            logger.info("G-code transmission complete")
+        except Exception as e:
+            logger.error(f"Error sending G-code: {str(e)}")
+            raise
+    
+    def _send_gcode_to_arduino_with_delay(self, gcode_data: str, delay: int):
+        """Send G-code commands to the Arduino with a delay between each command."""
+        if not self.serial_connection or not self.serial_connection.is_open:
+            raise Exception("No serial connection")
+
+        try:
+            logger.info("Sending G-code to Arduino with delay")
+
+            for line in gcode_data.splitlines():
+                command = line.strip()
+                if command:
+                    response = self._send_command(command)
+                    logger.debug(f"Command: {command}, Response: {response}")
+                    time.sleep(delay)  # Add delay between commands
+
+            logger.info("G-code transmission complete")
+        except Exception as e:
+            logger.error(f"Error sending G-code: {str(e)}")
+            raise
+    
     def _send_command(self, command: str) -> str:
         if not self.serial_connection or not self.serial_connection.is_open:
             raise Exception("No serial connection")
@@ -177,6 +223,111 @@ class EngravingWorker:
             
             if time.time() - start_time > 3600:
                 raise TimeoutError("Engraving timeout (1 hour)")
+    
+    def _update_grbl_settings(self):
+        """Update GRBL settings for max travel dimensions to 250x250mm."""
+        if not self.serial_connection or not self.serial_connection.is_open:
+            raise Exception("No serial connection")
+
+        try:
+            settings = {
+                "$130": 250.0,  # X max travel
+                "$131": 250.0,  # Y max travel
+                "$132": 250.0   # Z max travel
+            }
+
+            for key, value in settings.items():
+                command = f"{key}={value}"
+                response = self._send_command(command)
+                logger.info(f"Updated {key} to {value}, Response: {response}")
+
+        except Exception as e:
+            logger.error(f"Error updating GRBL settings: {str(e)}")
+            raise
+
+    def process_batch(self, batch_id: int, delay: int):
+        """Process a batch of engraving jobs with a delay between each job."""
+        jobs = self.db.query(EngravingQueue).filter(EngravingQueue.batch_id == batch_id).all()
+        if not jobs:
+            logger.error(f"No jobs found for batch {batch_id}")
+            return {"status": "error", "message": "No jobs found for batch"}
+
+        try:
+            for job in jobs:
+                logger.info(f"Processing job {job.id} in batch {batch_id}")
+                self.process_job(job.id)
+                logger.info(f"Completed job {job.id}, waiting for {delay} seconds before next job")
+                time.sleep(delay)
+
+            return {"status": "success", "message": "Batch processing completed"}
+        except Exception as e:
+            logger.error(f"Error processing batch {batch_id}: {str(e)}")
+            return {"status": "error", "message": str(e)}
+
+    def stop_engraving(self):
+        """Stop the engraving process immediately."""
+        if self.serial_connection and self.serial_connection.is_open:
+            try:
+                self._send_command("!\n")  # GRBL feed hold command
+                logger.info("Engraving process stopped")
+            except Exception as e:
+                logger.error(f"Error stopping engraving: {str(e)}")
+        else:
+            logger.warning("No active serial connection to stop engraving")
+
+    def fetch_qr_codes(self, batch_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Fetch QR codes from the database, optionally filtered by batch ID."""
+        try:
+            if batch_id:
+                qr_codes = self.db.query(EngravingQueue).filter(EngravingQueue.batch_id == batch_id).all()
+            else:
+                qr_codes = self.db.query(EngravingQueue).all()
+
+            return [
+                {
+                    "id": qr.id,
+                    "qr_code": qr.qr_code,
+                    "status": qr.status,
+                    "batch_id": qr.batch_id
+                }
+                for qr in qr_codes
+            ]
+        except Exception as e:
+            logger.error(f"Error fetching QR codes: {str(e)}")
+            return []
+
+    def generate_qr_code(self, data: str, batch_id: Optional[int] = None) -> Dict[str, Any]:
+        """Generate a QR code based on user input and store it in the database."""
+        try:
+            # Generate QR code image
+            qr = qrcode.QRCode(box_size=10, border=4, error_correction=qrcode.constants.ERROR_CORRECT_M)
+            qr.add_data(data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+
+            # Save QR code image to a temporary location
+            temp_path = f"/tmp/{uuid.uuid4().hex}.png"
+            img.save(temp_path)
+
+            # Store QR code in the database
+            qr_entry = EngravingQueue(
+                qr_code=data,
+                batch_id=batch_id,
+                status="ready",
+                image_path=temp_path
+            )
+            self.db.add(qr_entry)
+            self.db.commit()
+
+            return {
+                "status": "success",
+                "message": "QR code generated and stored successfully",
+                "qr_code": data,
+                "batch_id": batch_id
+            }
+        except Exception as e:
+            logger.error(f"Error generating QR code: {str(e)}")
+            return {"status": "error", "message": str(e)}
 
 def process_engraving_job(job_id: int) -> Dict[str, Any]:
     worker = EngravingWorker()

@@ -1,0 +1,21 @@
+{
+  "name": "gengrav-electron-app",
+  "version": "1.0.0",
+  "description": "Electron app for the generation functionalities of the GENGRAV project.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . gengrav-electron-app --platform=darwin,win32,linux --arch=x64 --out=dist --overwrite"
+  },
+  "author": "DEMACARTI",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^26.0.0",
+    "electron-packager": "^17.1.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3",
+    "qrcode": "^1.5.4"
+  }
+}

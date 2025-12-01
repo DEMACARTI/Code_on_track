@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>QR Code Generation - GENGRAV</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>QR Code Generation</h1>
+    </div>
+
+    <div class="content">
+      <div class="left-panel">
+        <div class="panel-header">
+          <h2>Component Details</h2>
+        </div>
+        
+        <form id="itemForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="componentType">Component Type *</label>
+              <select id="componentType" name="componentType" required>
+                <option value="">Select Component Type</option>
+                <option value="EC">EC - Electronic Component</option>
+                <option value="SLP">SLP - Sleeve Part</option>
+                <option value="RP">RP - Replacement Part</option>
+                <option value="LIN">LIN - Linear Component</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="vendorId">Vendor *</label>
+              <select id="vendorId" name="vendorId" required>
+                <option value="">Select Vendor</option>
+                <option value="101">Vendor 101</option>
+                <option value="102">Vendor 102</option>
+                <option value="103">Vendor 103</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="lotNumber">Lot Number *</label>
+              <select id="lotNumber" name="lotNumber" required>
+                <option value="">Select Lot Number</option>
+                <option value="LOT1234">LOT1234</option>
+                <option value="LOT5678">LOT5678</option>
+                <option value="LOT9012">LOT9012</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="warrantyYears">Warranty Years *</label>
+              <input type="number" id="warrantyYears" name="warrantyYears" value="5" min="1" max="20" required>
+              <span class="hint">1 - 20 years</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="quantity">Quantity *</label>
+              <input type="number" id="quantity" name="quantity" value="1" min="1" max="1000" required>
+              <span class="hint">1 - 1000 items</span>
+            </div>
+
+            <div class="form-group">
+              <label for="manufactureDate">Manufacturing Date *</label>
+              <input type="date" id="manufactureDate" name="manufactureDate" required>
+              <span class="hint">Cannot be in the future</span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-generate">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              Generate 1 QR Code
+            </button>
+            <button type="button" class="btn-reset" onclick="resetForm()">Reset</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="right-panel">
+        <div class="panel-header">
+          <h2>Generated QR Codes (<span id="qrCount">0</span>)</h2>
+        </div>
+        
+        <div id="qrResult" class="qr-result">
+          <div class="empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <p class="empty-title">No QR codes generated yet</p>
+            <p class="empty-subtitle">Fill in the form and click Generate to create QR codes</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set today's date as max for manufacture date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('manufactureDate').setAttribute('max', today);
+    document.getElementById('manufactureDate').value = today;
+
+    let generatedQRCodes = [];
+
+    function updateQuantityInButton() {
+      const quantity = document.getElementById('quantity').value || 1;
+      const btn = document.querySelector('.btn-generate');
+      btn.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        Generate ${quantity} QR Code${quantity > 1 ? 's' : ''}
+      `;
+    }
+
+    document.getElementById('quantity').addEventListener('input', updateQuantityInButton);
+
+    function resetForm() {
+      document.getElementById('itemForm').reset();
+      document.getElementById('manufactureDate').value = today;
+      updateQuantityInButton();
+    }
+
+    async function displayQRCodes(data) {
+      generatedQRCodes.push(data);
+      document.getElementById('qrCount').textContent = generatedQRCodes.length;
+
+      const qrResult = document.getElementById('qrResult');
+      
+      // Load QR code image as data URL
+      let qrImageDataUrl = '';
+      if (data.qr_image_url) {
+        const imageResult = await window.electronAPI.getQRImage(data.qr_image_url);
+        if (imageResult.success) {
+          qrImageDataUrl = imageResult.dataUrl;
+        }
+      }
+      
+      const qrCard = document.createElement('div');
+      qrCard.className = 'qr-card';
+      qrCard.innerHTML = `
+        <div class="qr-card-header">
+          <h3>${data.uid}</h3>
+          <span class="status-badge">${data.current_status || 'Generated'}</span>
+        </div>
+        <div class="qr-card-body">
+          <div class="qr-info">
+            <div class="info-row">
+              <span class="info-label">Component Type:</span>
+              <span class="info-value">${data.component_type}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Lot Number:</span>
+              <span class="info-value">${data.lot_number}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Vendor ID:</span>
+              <span class="info-value">${data.vendor_id}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Warranty:</span>
+              <span class="info-value">${data.warranty_years} years</span>
+            </div>
+          </div>
+          ${qrImageDataUrl ? `
+          <div class="qr-image">
+            <img src="${qrImageDataUrl}" alt="QR Code for ${data.uid}">
+          </div>
+          ` : ''}
+        </div>
+        <div class="qr-card-footer">
+          <small>Created: ${new Date(data.created_at || Date.now()).toLocaleString()}</small>
+        </div>
+      `;
+
+      if (generatedQRCodes.length === 1) {
+        qrResult.innerHTML = '';
+      }
+      
+      qrResult.insertBefore(qrCard, qrResult.firstChild);
+    }
+
+    document.getElementById('itemForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const componentType = document.getElementById('componentType').value;
+      const lotNumber = document.getElementById('lotNumber').value;
+      const quantity = parseInt(document.getElementById('quantity').value, 10);
+      const vendorId = parseInt(document.getElementById('vendorId').value, 10);
+      const warrantyYears = parseInt(document.getElementById('warrantyYears').value, 10) || 0;
+      const manufactureDate = document.getElementById('manufactureDate').value || null;
+
+      const btn = document.querySelector('.btn-generate');
+      btn.disabled = true;
+      btn.innerHTML = `Generating ${quantity} QR Code${quantity > 1 ? 's' : ''}...`;
+
+      try {
+        // Generate base UID (will be made unique for each item in main process)
+        const uid = `${componentType}-${lotNumber}`;
+        
+        const itemData = {
+          uid: uid,
+          component_type: componentType,
+          lot_number: lotNumber,
+          quantity: quantity,
+          vendor_id: vendorId,
+          warranty_years: warrantyYears,
+          manufacture_date: manufactureDate,
+          current_status: 'manufactured'
+        };
+
+        // Use IPC to create items in database
+        const result = await window.electronAPI.createItem(itemData);
+        
+        if (result.success) {
+          // Display all created items
+          if (result.items && result.items.length > 0) {
+            for (const item of result.items) {
+              await displayQRCodes(item);
+            }
+            alert(`Successfully generated ${result.count} QR code${result.count > 1 ? 's' : ''}!`);
+          }
+        } else {
+          alert(`Error: ${result.error || 'Failed to generate QR code'}`);
+        }
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        updateQuantityInButton();
+      }
+    });
+  </script>
+</body>
+</html>
