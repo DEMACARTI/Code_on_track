@@ -1,0 +1,98 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-9.0.1, pluggy-1.5.0
+rootdir: C:\Users\hp\Downloads\Code_on_track-5\website_backend
+plugins: anyio-4.10.0, cov-7.0.0
+collected 9 items
+
+tests\test_items.py EEEEEEEEE                                            [100%]
+
+=================================== ERRORS ====================================
+_____________________ ERROR at setup of test_create_item ______________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 19
+  def test_create_item(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:19
+_________________ ERROR at setup of test_create_duplicate_uid _________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 44
+  def test_create_duplicate_uid(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:44
+______________________ ERROR at setup of test_read_item _______________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 64
+  def test_read_item(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:64
+________________ ERROR at setup of test_read_nonexistent_item _________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 76
+  def test_read_nonexistent_item(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:76
+______________________ ERROR at setup of test_list_items ______________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 86
+  def test_list_items(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:86
+_____________________ ERROR at setup of test_filter_items _____________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 102
+  def test_filter_items(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:102
+__________________ ERROR at setup of test_update_item_status __________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 120
+  def test_update_item_status(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:120
+____________ ERROR at setup of test_update_nonexistent_item_status ____________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 142
+  def test_update_nonexistent_item_status(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:142
+________________ ERROR at setup of test_create_multiple_items _________________
+file C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py, line 158
+  def test_create_multiple_items(
+E       fixture 'client' not found
+>       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, inactive_user, inactive_user_token_headers, monkeypatch, no_cover, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, test_client, test_db, test_item, test_user, test_vendor, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+C:\Users\hp\Downloads\Code_on_track-5\website_backend\tests\test_items.py:158
+============================== warnings summary ===============================
+..\..\..\miniconda3\Lib\site-packages\pydantic\_internal\_config.py:323
+  C:\Users\hp\miniconda3\Lib\site-packages\pydantic\_internal\_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR tests/test_items.py::test_create_item
+ERROR tests/test_items.py::test_create_duplicate_uid
+ERROR tests/test_items.py::test_read_item
+ERROR tests/test_items.py::test_read_nonexistent_item
+ERROR tests/test_items.py::test_list_items
+ERROR tests/test_items.py::test_filter_items
+ERROR tests/test_items.py::test_update_item_status
+ERROR tests/test_items.py::test_update_nonexistent_item_status
+ERROR tests/test_items.py::test_create_multiple_items
+======================== 1 warning, 9 errors in 0.04s =========================
