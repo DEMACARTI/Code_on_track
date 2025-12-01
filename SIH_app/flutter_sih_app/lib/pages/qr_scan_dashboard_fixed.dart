@@ -96,17 +96,7 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
     setState(() => _attachedPhotoPath = file.path);
   }
 
-  Future<String> _invokeLLMForStatus(String remark, ScannedItem item) async {
-    try {
-      final dynamic svc = widget.qrService;
-      final dynamic out = await (svc as dynamic).rateInspectionWithLLM?.call(
-        qrId: item.id,
-        remark: remark,
-        photoPath: _attachedPhotoPath,
-      );
-      if (out is String && out.isNotEmpty) return out;
-    } catch (_) {}
-
+  String _deriveStatusFromRemark(String remark) {
     final r = remark.toLowerCase();
     if (r.contains('fail') || r.contains('broken') || r.contains('damaged'))
       return 'fail';
@@ -118,7 +108,7 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
   Future<void> _submitRemark() async {
     final remark = _remarkController.text.trim();
     if (_currentItem == null || remark.isEmpty) return;
-    final status = await _invokeLLMForStatus(remark, _currentItem!);
+    final status = _deriveStatusFromRemark(remark);
 
     final success = await widget.qrService.uploadInspection(
       qrId: _currentItem!.id,

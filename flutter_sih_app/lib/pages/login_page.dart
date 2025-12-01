@@ -281,7 +281,6 @@ class _LoginPageState extends State<LoginPage>
                                         focusNode: _usernameFocus,
                                         controller: _usernameController,
                                         decoration: InputDecoration(
-                                          // show hint only when not focused and empty
                                           hintText:
                                               !_usernameFocus.hasFocus &&
                                                   _usernameController
@@ -330,7 +329,6 @@ class _LoginPageState extends State<LoginPage>
                                         controller: _passwordController,
                                         obscureText: _obscurePassword,
                                         decoration: InputDecoration(
-                                          // show hint only when not focused and empty
                                           hintText:
                                               !_passwordFocus.hasFocus &&
                                                   _passwordController

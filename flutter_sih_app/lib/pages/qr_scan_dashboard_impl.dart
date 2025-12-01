@@ -12,8 +12,11 @@ class QRScanDashboard extends StatefulWidget {
   final User user;
   final QRScanService qrService;
 
-  const QRScanDashboard({Key? key, required this.user, required this.qrService})
-    : super(key: key);
+  const QRScanDashboard({
+    super.key,
+    required this.user,
+    required this.qrService,
+  });
 
   @override
   State<QRScanDashboard> createState() => _QRScanDashboardState();
@@ -84,17 +87,20 @@ class _QRScanDashboardState extends State<QRScanDashboard>
         );
         if (out is ScannedItem) {
           setState(() {
-            if (!_recent.any((s) => s.id == out.id)) _recent.insert(0, out);
+            if (!_recent.any((s) => s.id == out.id)) {
+              _recent.insert(0, out);
+            }
           });
           await _closeScannerBox();
           return;
         }
       } catch (_) {}
 
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not decode QR from image')),
         );
+      }
     } catch (_) {}
   }
 
@@ -116,10 +122,11 @@ class _QRScanDashboardState extends State<QRScanDashboard>
   Future<void> _processScannedCode(String code) async {
     final item = await widget.qrService.scanQRCode(code);
     if (item == null) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('QR not recognized')));
+      }
       return;
     }
     setState(() {
@@ -183,7 +190,7 @@ class _QRScanDashboardState extends State<QRScanDashboard>
                   if (_boxOpen)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withValues(alpha: 0.6),
                         child: SafeArea(
                           child: Stack(
                             children: [
@@ -288,17 +295,19 @@ class _QRScanDashboardState extends State<QRScanDashboard>
                   ElevatedButton(
                     onPressed: () async {
                       // stop camera while navigating to simulate page
+                      final navigator = Navigator.of(context);
                       try {
                         await _cameraController.stop();
                       } catch (_) {}
-                      await Navigator.of(context).push(
+                      await navigator.push(
                         MaterialPageRoute(
                           builder: (ctx) => QRScanSimulatePage(
                             qrService: widget.qrService,
                             onSimulated: (it) {
                               setState(() {
-                                if (!_recent.any((s) => s.id == it.id))
+                                if (!_recent.any((s) => s.id == it.id)) {
                                   _recent.insert(0, it);
+                                }
                               });
                             },
                           ),

@@ -11,10 +11,10 @@ class QRScanSimulatePage extends StatefulWidget {
   final void Function(ScannedItem) onSimulated;
 
   const QRScanSimulatePage({
-    Key? key,
+    super.key,
     required this.qrService,
     required this.onSimulated,
-  }) : super(key: key);
+  });
 
   @override
   State<QRScanSimulatePage> createState() => _QRScanSimulatePageState();
@@ -73,13 +73,14 @@ class _QRScanSimulatePageState extends State<QRScanSimulatePage> {
       if (low.contains('broken') ||
           low.contains('fail') ||
           low.contains('damaged') ||
-          low.contains('not working'))
+          low.contains('not working')) {
         newStatus = 'non_operational';
-      else if (low.contains('maint') ||
+      } else if (low.contains('maint') ||
           low.contains('service') ||
           low.contains('repair') ||
-          low.contains('leak'))
+          low.contains('leak')) {
         newStatus = 'needs_maintenance';
+      }
       setState(() {
         _predictedStatus = newStatus;
         _llmResult = 'Auto-rated: ${newStatus.replaceAll('_', ' ')}';
@@ -107,12 +108,15 @@ class _QRScanSimulatePageState extends State<QRScanSimulatePage> {
         lastUpdated: DateTime.now(),
       );
       widget.onSimulated(item);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } else {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Upload failed')));
+      }
     }
   }
 

@@ -9,6 +9,11 @@ class ScannedItem {
   final String location;
   final String? details;
   final DateTime? lastUpdated;
+  // Optional metadata fields from backend
+  final String? material;
+  final String? lotNo;
+  final String? vendorId;
+  final String? batch;
 
   ScannedItem({
     required this.id,
@@ -17,6 +22,10 @@ class ScannedItem {
     required this.location,
     this.details,
     this.lastUpdated,
+    this.material,
+    this.lotNo,
+    this.vendorId,
+    this.batch,
   });
 
   factory ScannedItem.fromJson(Map<String, dynamic> json) {
@@ -29,6 +38,10 @@ class ScannedItem {
       lastUpdated: json['last_updated'] != null
           ? DateTime.tryParse(json['last_updated'] as String)
           : null,
+      material: json['material'] as String?,
+      lotNo: json['lot_no'] as String? ?? json['lotNo'] as String?,
+      vendorId: json['vendor_id'] as String? ?? json['vendorId'] as String?,
+      batch: json['batch'] as String?,
     );
   }
 }
@@ -143,6 +156,10 @@ class MockQRScanService implements QRScanService {
       'status': 'operational',
       'location': 'Main Lobby',
       'details': 'Fire extinguisher checked and operational',
+      'material': 'Extinguisher Model X',
+      'lot_no': 'L-001',
+      'vendor_id': 'VEND-100',
+      'batch': 'BATCH-A1',
       'last_updated': DateTime.now().toString(),
     },
     'QR002': {
@@ -151,6 +168,10 @@ class MockQRScanService implements QRScanService {
       'status': 'operational',
       'location': 'Corridor A',
       'details': 'Emergency lighting system functional',
+      'material': 'EmergencyLight-Z',
+      'lot_no': 'L-221',
+      'vendor_id': 'VEND-203',
+      'batch': 'BATCH-C3',
       'last_updated': DateTime.now().toString(),
     },
     'QR003': {
@@ -159,6 +180,10 @@ class MockQRScanService implements QRScanService {
       'status': 'needs_maintenance',
       'location': 'Storage Room',
       'details': 'Equipment requires maintenance',
+      'material': 'SafetyKit-9',
+      'lot_no': 'L-900',
+      'vendor_id': 'VEND-330',
+      'batch': 'BATCH-X',
       'last_updated': DateTime.now().toString(),
     },
   };

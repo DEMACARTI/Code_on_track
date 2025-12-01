@@ -10,8 +10,7 @@ import '../services/qr_scan_service.dart';
 class QRScanDashboardFixed extends StatefulWidget {
   final QRScanService qrService;
 
-  const QRScanDashboardFixed({Key? key, required this.qrService})
-    : super(key: key);
+  const QRScanDashboardFixed({super.key, required this.qrService});
 
   @override
   State<QRScanDashboardFixed> createState() => _QRScanDashboardFixedState();
@@ -65,6 +64,7 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
 
   Future<void> _processScannedCode(String code) async {
     final item = await widget.qrService.scanQRCode(code);
+    if (!mounted) return;
     if (item == null) {
       ScaffoldMessenger.of(
         context,
@@ -108,10 +108,12 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
     } catch (_) {}
 
     final r = remark.toLowerCase();
-    if (r.contains('fail') || r.contains('broken') || r.contains('damaged'))
+    if (r.contains('fail') || r.contains('broken') || r.contains('damaged')) {
       return 'fail';
-    if (r.contains('pass') || r.contains('ok') || r.contains('good'))
+    }
+    if (r.contains('pass') || r.contains('ok') || r.contains('good')) {
       return 'pass';
+    }
     return 'unknown';
   }
 
@@ -119,6 +121,7 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
     final remark = _remarkController.text.trim();
     if (_currentItem == null || remark.isEmpty) return;
     final status = await _invokeLLMForStatus(remark, _currentItem!);
+    if (!mounted) return;
 
     final success = await widget.qrService.uploadInspection(
       qrId: _currentItem!.id,
@@ -126,6 +129,8 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
       remark: remark,
       photoPath: _attachedPhotoPath,
     );
+    if (!mounted) return;
+
     if (success) {
       final updated = ScannedItem(
         id: _currentItem!.id,
@@ -137,8 +142,9 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
       );
       setState(() {
         _currentItem = updated;
-        if (_recent.isNotEmpty && _recent.first.id == updated.id)
+        if (_recent.isNotEmpty && _recent.first.id == updated.id) {
           _recent[0] = updated;
+        }
         _remarkController.clear();
         _attachedPhotoPath = null;
       });
@@ -179,9 +185,9 @@ class _QRScanDashboardFixedState extends State<QRScanDashboardFixed>
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.greenAccent.withOpacity(0.0),
-                            Colors.greenAccent.withOpacity(0.95),
-                            Colors.greenAccent.withOpacity(0.0),
+                            Colors.greenAccent.withValues(alpha: 0.0),
+                            Colors.greenAccent.withValues(alpha: 0.95),
+                            Colors.greenAccent.withValues(alpha: 0.0),
                           ],
                         ),
                       ),
