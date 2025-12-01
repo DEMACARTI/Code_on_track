@@ -1,9 +1,16 @@
 # App_a/app/models.py
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Text, JSON, UniqueConstraint, ForeignKey, Enum
+from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Text, JSON, UniqueConstraint, ForeignKey, Enum, Boolean
 from sqlalchemy.sql import func as sqlfunc
 from sqlalchemy.orm import relationship
 import enum
 from .database import Base
+
+class UserRole(str, enum.Enum):
+    INVENTORY = "inventory"
+    INSTALLATION = "installation"
+    MANAGEMENT = "management"
+    INSPECTION = "inspection"
+    ADMIN = "admin"
 
 class EngravingStatus(str, enum.Enum):
     PENDING = "pending"
@@ -66,3 +73,23 @@ class EngravingHistory(Base):
     
     # Relationship to EngravingQueue
     engraving_job = relationship("EngravingQueue", back_populates="history")
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(100), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    full_name = Column(String(100), nullable=True)
+    department = Column(Enum(UserRole), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=sqlfunc.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=sqlfunc.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    
+    __table_args__ = (
+        UniqueConstraint('username', name='uq_users_username'),
+        UniqueConstraint('email', name='uq_users_email'),
+    )
+

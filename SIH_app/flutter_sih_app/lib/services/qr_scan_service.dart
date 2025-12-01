@@ -9,6 +9,11 @@ class ScannedItem {
   final String location;
   final String? details;
   final DateTime? lastUpdated;
+  // Optional metadata fields from backend
+  final String? material;
+  final String? lotNo;
+  final String? vendorId;
+  final String? batch;
 
   ScannedItem({
     required this.id,
@@ -17,6 +22,10 @@ class ScannedItem {
     required this.location,
     this.details,
     this.lastUpdated,
+    this.material,
+    this.lotNo,
+    this.vendorId,
+    this.batch,
   });
 
   factory ScannedItem.fromJson(Map<String, dynamic> json) {
@@ -29,6 +38,10 @@ class ScannedItem {
       lastUpdated: json['last_updated'] != null
           ? DateTime.tryParse(json['last_updated'] as String)
           : null,
+      material: json['material'] as String?,
+      lotNo: json['lot_no'] as String? ?? json['lotNo'] as String?,
+      vendorId: json['vendor_id'] as String? ?? json['vendorId'] as String?,
+      batch: json['batch'] as String?,
     );
   }
 }
@@ -53,35 +66,60 @@ abstract class QRScanService {
 class RestQRScanService implements QRScanService {
   final String baseUrl;
   final http.Client httpClient;
-  final String endpoint;
 
   RestQRScanService({
     required this.baseUrl,
     http.Client? client,
-    this.endpoint = '/qr/scan',
   }) : httpClient = client ?? http.Client();
 
   @override
   Future<ScannedItem?> scanQRCode(String qrData) async {
-    final uri = Uri.parse('$baseUrl$endpoint');
-
     try {
+      // Extract UID from QR data (could be JSON, URL, or plain UID)
+      String uid = qrData;
+      
+      // If QR data is JSON, extract UID
+      if (qrData.trim().startsWith('{')) {
+        final jsonData = jsonDecode(qrData);
+        uid = jsonData['uid'] ?? qrData;
+      } 
+      // If QR data is URL, extract UID from path
+      else if (qrData.startsWith('http')) {
+        uid = Uri.parse(qrData).pathSegments.last;
+      }
+
+      // Call backend API to get item details
+      final uri = Uri.parse('$baseUrl/api/items/$uid');
       final resp = await httpClient
-          .post(
+          .get(
             uri,
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'qr_code': qrData}),
           )
           .timeout(const Duration(seconds: 10));
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        return ScannedItem.fromJson(data);
+        
+        // Map backend response to ScannedItem
+        return ScannedItem(
+          id: data['uid'] ?? uid,
+          name: '${data['component_type']} - ${data['lot_number']}',
+          status: data['current_status'] ?? 'unknown',
+          location: 'Warehouse', // Default location
+          details: 'Vendor: ${data['vendor_id']}, Warranty: ${data['warranty_years']} years',
+          lastUpdated: data['created_at'] != null 
+              ? DateTime.tryParse(data['created_at'])
+              : null,
+          material: data['component_type'],
+          lotNo: data['lot_number'],
+          vendorId: data['vendor_id']?.toString(),
+          batch: data['lot_number'],
+        );
       } else if (resp.statusCode == 404) {
         return null;
       }
     } catch (e) {
-      // Network or parsing error
+      print('Error scanning QR: $e');
     }
     return null;
   }
@@ -143,6 +181,10 @@ class MockQRScanService implements QRScanService {
       'status': 'operational',
       'location': 'Main Lobby',
       'details': 'Fire extinguisher checked and operational',
+      'material': 'Extinguisher Model X',
+      'lot_no': 'L-001',
+      'vendor_id': 'VEND-100',
+      'batch': 'BATCH-A1',
       'last_updated': DateTime.now().toString(),
     },
     'QR002': {
@@ -151,6 +193,10 @@ class MockQRScanService implements QRScanService {
       'status': 'operational',
       'location': 'Corridor A',
       'details': 'Emergency lighting system functional',
+      'material': 'EmergencyLight-Z',
+      'lot_no': 'L-221',
+      'vendor_id': 'VEND-203',
+      'batch': 'BATCH-C3',
       'last_updated': DateTime.now().toString(),
     },
     'QR003': {
@@ -159,6 +205,10 @@ class MockQRScanService implements QRScanService {
       'status': 'needs_maintenance',
       'location': 'Storage Room',
       'details': 'Equipment requires maintenance',
+      'material': 'SafetyKit-9',
+      'lot_no': 'L-900',
+      'vendor_id': 'VEND-330',
+      'batch': 'BATCH-X',
       'last_updated': DateTime.now().toString(),
     },
   };

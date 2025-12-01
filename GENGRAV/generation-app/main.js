@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
@@ -16,11 +16,23 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      devTools: false
     }
   });
 
   mainWindow.loadFile('index.html');
+  
+  // Remove all keyboard shortcuts that open DevTools
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' || 
+        (input.control && input.shift && input.key === 'I') ||
+        (input.meta && input.alt && input.key === 'I') ||
+        (input.control && input.shift && input.key === 'J') ||
+        (input.meta && input.alt && input.key === 'J')) {
+      event.preventDefault();
+    }
+  });
 
   mainWindow.on('closed', async () => {
     mainWindow = null;
@@ -36,10 +48,10 @@ function createWindow() {
 }
 
 // Initialize database client
-app.on('ready', () => {
+function initializeApp() {
   createWindow();
   dbClient = new DatabaseClient();
-});
+}
 
 // IPC Handlers for database operations
 ipcMain.handle('create-item', async (event, itemData) => {
@@ -75,10 +87,19 @@ ipcMain.handle('create-item', async (event, itemData) => {
         hex_id: hexCode
       });
 
+      // Generate QR code as base64 (stored directly in database)
+      const qrBase64 = await QRCode.toDataURL(qrData, {
+        width: 500,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+
+      // Also save to file for backup/local viewing
       const qrFilename = `${uniqueUid}.png`;
       const qrFilePath = path.join(qrCodesDir, qrFilename);
-      
-      // Generate and save QR code
       await QRCode.toFile(qrFilePath, qrData, {
         width: 500,
         margin: 2,
@@ -97,12 +118,13 @@ ipcMain.handle('create-item', async (event, itemData) => {
         quantity: 1, // Each item represents 1 unit
         warranty_years: itemData.warranty_years,
         manufacture_date: itemData.manufacture_date,
-        qr_image_url: `qr-codes/${qrFilename}`,
+        qr_image_url: qrBase64, // Store base64 directly
         current_status: itemData.current_status || 'manufactured',
         metadata: JSON.stringify({
           original_quantity: quantity,
           item_number: i + 1,
-          generated_at: new Date().toISOString()
+          generated_at: new Date().toISOString(),
+          local_file: `qr-codes/${qrFilename}` // Keep reference to local file
         })
       };
 
@@ -176,7 +198,7 @@ ipcMain.handle('get-qr-image', async (event, qrPath) => {
   }
 });
 
-app.on('ready', createWindow);
+app.on('ready', initializeApp);
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

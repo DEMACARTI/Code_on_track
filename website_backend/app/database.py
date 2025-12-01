@@ -30,8 +30,9 @@ engine_kwargs = {
 if settings.DB_DRIVER == "sqlite":
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 
-# Create engine
-engine = create_engine(settings.DATABASE_URI, **engine_kwargs)
+# Create engine - Use DATABASE_URL from env if available (for Supabase)
+database_url = os.getenv("DATABASE_URL") or settings.DATABASE_URI
+engine = create_engine(database_url, **engine_kwargs)
 
 # Session factory
 SessionLocal = scoped_session(

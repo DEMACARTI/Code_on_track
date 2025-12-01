@@ -378,6 +378,146 @@ class GRBLController {
       await this.dbClient.close();
     }
   }
+
+  // Additional methods for engraving workflow
+  async startBatchEngraving(batchId, delay) {
+    try {
+      // Fetch all items in the batch
+      const items = await this.dbClient.getItemsByBatch(batchId);
+      
+      if (!items || items.length === 0) {
+        return { success: false, error: 'No items found in batch' };
+      }
+
+      this.updateStatus(`Starting batch ${batchId} with ${items.length} items, ${delay}s delay`);
+      
+      // Process each item in the batch
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        // Create engraving job
+        const job = await this.dbClient.createEngravingJob({
+          item_uid: item.uid,
+          svg_url: item.qr_image_url || ''
+        });
+        
+        // Start engraving
+        await this.startEngravingJob(job.id);
+        
+        // Simulate engraving time
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        
+        // Complete the job
+        await this.completeEngravingJob(job.id, true);
+        
+        // Delay between items (except for the last one)
+        if (i < items.length - 1 && delay > 0) {
+          this.updateStatus(`Waiting ${delay}s before next item...`);
+          await new Promise(resolve => setTimeout(resolve, delay * 1000));
+        }
+      }
+      
+      this.updateStatus('Batch engraving complete');
+      return { success: true, processedItems: items.length };
+    } catch (error) {
+      console.error('Error in batch engraving:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async engraveSingle(qrCodeId) {
+    try {
+      // Find item by QR code
+      const item = await this.dbClient.getItemByQRCode(qrCodeId);
+      
+      if (!item) {
+        return { success: false, error: 'QR code not found' };
+      }
+
+      this.updateStatus(`Engraving single item: ${qrCodeId}`);
+      
+      // Create engraving job
+      const job = await this.dbClient.createEngravingJob({
+        item_uid: item.uid,
+        svg_url: item.qr_image_url || ''
+      });
+      
+      // Start engraving
+      await this.startEngravingJob(job.id);
+      
+      // Simulate engraving time
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      // Complete the job
+      await this.completeEngravingJob(job.id, true);
+      
+      this.updateStatus('Single item engraving complete');
+      return { success: true, qrCode: qrCodeId };
+    } catch (error) {
+      console.error('Error in single engraving:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  stopEngraving() {
+    try {
+      // Stop current job
+      if (this.currentJobId) {
+        this.reset();
+        this.completeEngravingJob(this.currentJobId, false, 'Stopped by operator');
+        this.updateStatus('Engraving stopped');
+        return { success: true };
+      }
+      return { success: false, error: 'No active engraving job' };
+    } catch (error) {
+      console.error('Error stopping engraving:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  setTimeDelay(delay) {
+    this.timeDelay = delay;
+    console.log(`Time delay set to ${delay}ms`);
+  }
+
+  async fetchQRCodes(batchId) {
+    try {
+      if (batchId) {
+        const items = await this.dbClient.getItemsByBatch(batchId);
+        return items;
+      } else {
+        const items = await this.dbClient.getAllItems();
+        return items;
+      }
+    } catch (error) {
+      console.error('Error fetching QR codes:', error);
+      return [];
+    }
+  }
+
+  async generateQRCode(data, batchId) {
+    try {
+      // This method would interface with the generation app or database
+      // For now, we'll just create a database entry
+      const item = await this.dbClient.createItem({
+        qr_code: data,
+        batch_id: batchId || null,
+        status: 'PENDING'
+      });
+      
+      return {
+        status: 'success',
+        qr_code: item.qr_code,
+        message: 'QR code generated and saved to database'
+      };
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      return {
+        status: 'error',
+        message: error.message
+      };
+    }
+  }
 }
 
 module.exports = GRBLController;

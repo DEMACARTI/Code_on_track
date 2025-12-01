@@ -218,7 +218,7 @@ class _LoginPageState extends State<LoginPage>
                       ),
                       const SizedBox(height: 16),
                       const Text(
-                        'SIH Dashboard',
+                        'Rail Chinh',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -227,7 +227,7 @@ class _LoginPageState extends State<LoginPage>
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Smart Infrastructure Hub',
+                        'QR',
                         style: TextStyle(fontSize: 14, color: Colors.black54),
                       ),
                       const SizedBox(height: 28),

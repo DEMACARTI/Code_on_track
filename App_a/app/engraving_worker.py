@@ -1,7 +1,7 @@
 import os
 import time
 import requests
-import serial
+# import serial  # Commented out for now - not needed for QR scanning
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime

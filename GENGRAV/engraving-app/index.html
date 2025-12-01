@@ -83,6 +83,48 @@
         </div>
 
         <div class="panel-section">
+          <h2>Operator Instructions</h2>
+          <div class="instruction-panel" id="instructionPanel">
+            <div class="instruction-step" id="step1" style="display: block;">
+              <h3>Step 1: Prepare the Board</h3>
+              <ul>
+                <li>✓ Clean the board surface with isopropyl alcohol</li>
+                <li>✓ Ensure the board is dry and free of debris</li>
+                <li>✓ Check that the laser lens is clean</li>
+              </ul>
+              <button id="step1DoneBtn" class="btn-success">Ready - Next Step</button>
+            </div>
+            <div class="instruction-step" id="step2" style="display: none;">
+              <h3>Step 2: Position the Board</h3>
+              <ul>
+                <li>✓ Place the board in the center of the engraving bed</li>
+                <li>✓ Align the board with the laser head at (0,0)</li>
+                <li>✓ Secure the board with clamps if needed</li>
+                <li>✓ Ensure the board is flat and level</li>
+              </ul>
+              <button id="step2BackBtn" class="btn-secondary">← Back</button>
+              <button id="step2DoneBtn" class="btn-success">Ready - Next Step</button>
+            </div>
+            <div class="instruction-step" id="step3" style="display: none;">
+              <h3>Step 3: Focus the Laser</h3>
+              <ul>
+                <li>✓ Move the laser head to the center of the board</li>
+                <li>✓ Adjust the Z-axis until the laser is in focus (~3-5mm from board)</li>
+                <li>✓ Use the focus gauge if available</li>
+                <li>✓ Test the focus with a low-power pulse</li>
+              </ul>
+              <button id="step3BackBtn" class="btn-secondary">← Back</button>
+              <button id="step3DoneBtn" class="btn-success">Ready - Start Engraving</button>
+            </div>
+            <div class="instruction-step" id="stepEngraving" style="display: none;">
+              <h3>✓ Ready to Engrave</h3>
+              <p>All pre-engraving checks completed. Configure engraving parameters below.</p>
+              <button id="stepResetBtn" class="btn-secondary">Reset Instructions</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
           <h2>Engraving Process</h2>
           <div class="form-group">
             <label for="qrSelection">Select QR Code or Batch</label>
@@ -183,6 +225,7 @@
       const status = document.getElementById('connectionStatus');
       const connectBtn = document.getElementById('connectBtn');
       const disconnectBtn = document.getElementById('disconnectBtn');
+      const startEngravingBtn = document.getElementById('startEngravingBtn');
       
       if (connected) {
         indicator.className = 'status-indicator connected';
@@ -194,6 +237,11 @@
         document.querySelectorAll('.btn-control, #laserOnBtn, #laserOffBtn, #testEngraveBtn, #sendCommandBtn').forEach(btn => {
           btn.disabled = false;
         });
+        
+        // Enable start engraving button when connected
+        if (startEngravingBtn) {
+          startEngravingBtn.disabled = false;
+        }
       } else {
         indicator.className = 'status-indicator disconnected';
         status.textContent = 'Not Connected';
@@ -204,6 +252,11 @@
         document.querySelectorAll('.btn-control, #laserOnBtn, #laserOffBtn, #testEngraveBtn, #sendCommandBtn').forEach(btn => {
           btn.disabled = true;
         });
+        
+        // Disable start engraving button when disconnected
+        if (startEngravingBtn) {
+          startEngravingBtn.disabled = true;
+        }
       }
     }
 
@@ -328,6 +381,39 @@
       }
     }
 
+    // Refresh engraving queue
+    async function refreshQueue() {
+      log('Refreshing engraving queue...', 'info');
+      
+      const result = await ipcRenderer.invoke('refresh-queue');
+      
+      if (result.success) {
+        const queueList = document.getElementById('queueList');
+        queueList.innerHTML = '';
+        
+        if (result.jobs.length === 0) {
+          queueList.innerHTML = '<div class="empty-state-small"><p>No jobs in queue</p></div>';
+          log('Queue is empty', 'info');
+        } else {
+          log(`Loaded ${result.jobs.length} pending jobs`, 'success');
+          
+          result.jobs.forEach((job) => {
+            const jobItem = document.createElement('div');
+            jobItem.className = 'queue-item';
+            jobItem.innerHTML = `
+              <strong>Job #${job.id}</strong><br/>
+              UID: ${job.item_uid}<br/>
+              Status: ${job.status}<br/>
+              Attempts: ${job.attempts}/${job.max_attempts}
+            `;
+            queueList.appendChild(jobItem);
+          });
+        }
+      } else {
+        log(`Failed to refresh queue: ${result.error}`, 'error');
+      }
+    }
+
     // Fetch QR Codes
     async function fetchQRCodes() {
       const batchId = document.getElementById('batchId').value;
@@ -335,19 +421,19 @@
 
       const result = await ipcRenderer.invoke('fetch-qr-codes', batchId ? parseInt(batchId) : null);
 
-      if (result.success) {
-        log(`Fetched ${result.qrCodes.length} QR codes`, 'success');
+      if (result.length > 0) {
+        log(`Fetched ${result.length} QR codes`, 'success');
         const qrList = document.getElementById('queueList');
         qrList.innerHTML = '';
 
-        result.qrCodes.forEach((qr) => {
+        result.forEach((qr) => {
           const qrItem = document.createElement('div');
           qrItem.className = 'queue-item';
-          qrItem.textContent = `QR Code: ${qr.qr_code} | Status: ${qr.status}`;
+          qrItem.textContent = `QR Code: ${qr.uid || qr.qr_code} | Status: ${qr.current_status}`;
           qrList.appendChild(qrItem);
         });
       } else {
-        log(`Failed to fetch QR codes: ${result.error}`, 'error');
+        log('No QR codes found', 'info');
       }
     }
 
@@ -454,6 +540,8 @@
       document.getElementById('console').innerHTML = '';
     });
     
+    document.getElementById('refreshQueueBtn').addEventListener('click', refreshQueue);
+    
     document.getElementById('laserPower').addEventListener('input', (e) => {
       laserPower = e.target.value;
       document.getElementById('powerValue').textContent = laserPower;
@@ -473,10 +561,54 @@
 
     document.getElementById('generateQRBtn').addEventListener('click', generateQRCode);
 
+    // Operator instruction step handlers
+    let currentStep = 1;
+    
+    function showStep(stepNumber) {
+      document.querySelectorAll('.instruction-step').forEach(step => {
+        step.style.display = 'none';
+      });
+      
+      if (stepNumber <= 3) {
+        document.getElementById(`step${stepNumber}`).style.display = 'block';
+      } else {
+        document.getElementById('stepEngraving').style.display = 'block';
+      }
+      
+      currentStep = stepNumber;
+      log(`Operator instruction: Step ${stepNumber}`, 'info');
+    }
+    
+    document.getElementById('step1DoneBtn').addEventListener('click', () => {
+      showStep(2);
+    });
+    
+    document.getElementById('step2BackBtn').addEventListener('click', () => {
+      showStep(1);
+    });
+    
+    document.getElementById('step2DoneBtn').addEventListener('click', () => {
+      showStep(3);
+    });
+    
+    document.getElementById('step3BackBtn').addEventListener('click', () => {
+      showStep(2);
+    });
+    
+    document.getElementById('step3DoneBtn').addEventListener('click', () => {
+      showStep(4);
+      log('Pre-engraving checks completed. Ready to engrave.', 'success');
+    });
+    
+    document.getElementById('stepResetBtn').addEventListener('click', () => {
+      showStep(1);
+    });
+
     // Initialize
     window.addEventListener('DOMContentLoaded', () => {
       log('Engraving Control App Ready', 'success');
       refreshPorts();
+      showStep(1);
     });
   </script>
 </body>

@@ -227,7 +227,23 @@ ipcMain.handle('get-all-items-with-status', async () => {
   }
 });
 
-app.on('ready', createWindow);
+ipcMain.handle('engrave-single', async (event, qrCodeId) => {
+  try {
+    const result = await grblController.engraveSingle(qrCodeId);
+    return result;
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('refresh-queue', async () => {
+  try {
+    const jobs = await grblController.getPendingJobs();
+    return { success: true, jobs };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

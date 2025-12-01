@@ -29,7 +29,7 @@ class RestAuthService implements AuthService {
   RestAuthService({
     required this.baseUrl,
     http.Client? client,
-    this.endpoint = '/auth/login',
+    this.endpoint = '/api/auth/login',  // Correct endpoint path
   }) : httpClient = client ?? http.Client();
 
   /// Get HTTP headers for requests. Override to customize (e.g., add auth tokens).
@@ -39,8 +39,18 @@ class RestAuthService implements AuthService {
 
   /// Parse and validate authentication response. Override to handle custom formats.
   User? parseResponse(Map<String, dynamic> data) {
-    final username = data['username'] as String?;
-    final email = data['email'] as String?;
+    // Backend returns: { "token": "...", "user": { "username": "...", "email": "...", ... } }
+    final userData = data['user'] as Map<String, dynamic>?;
+    if (userData == null) {
+      // Fallback to old format
+      final username = data['username'] as String?;
+      final email = data['email'] as String?;
+      if (username == null) return null;
+      return User(username: username, email: email ?? '');
+    }
+
+    final username = userData['username'] as String?;
+    final email = userData['email'] as String?;
 
     if (username == null) {
       return null; // Invalid response

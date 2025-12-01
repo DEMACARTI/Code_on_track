@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GENGRAV - QR Code Generation</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .header p {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    .main-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 450px 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+    }
+
+    .card-header h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 25px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #444;
+      font-size: 0.9rem;
+    }
+
+    .form-group label .required {
+      color: #e74c3c;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group .hint {
+      display: block;
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 5px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      flex: 1;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #f5f5f5;
+      color: #666;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    .qr-results {
+      max-height: calc(100vh - 160px);
+      overflow-y: auto;
+    }
+
+    .qr-results::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .qr-results::-webkit-scrollbar-thumb {
+      background: #d0d0d0;
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .empty-state svg {
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+
+    .empty-state h3 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+      color: #666;
+    }
+
+    .empty-state p {
+      font-size: 0.9rem;
+    }
+
+    .qr-item {
+      background: #f9f9f9;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border: 2px solid #e0e0e0;
+      transition: all 0.3s;
+    }
+
+    .qr-item:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+    }
+
+    .qr-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .qr-item-header h3 {
+      font-size: 1.1rem;
+      color: #333;
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .status-badge {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: #4CAF50;
+      color: white;
+    }
+
+    .qr-item-body {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+    }
+
+    .qr-details {
+      display: grid;
+      gap: 8px;
+    }
+
+    .qr-detail-row {
+      display: flex;
+      font-size: 0.9rem;
+    }
+
+    .qr-detail-label {
+      font-weight: 600;
+      color: #666;
+      min-width: 120px;
+    }
+
+    .qr-detail-value {
+      color: #333;
+    }
+
+    .qr-image-container {
+      text-align: center;
+    }
+
+    .qr-image-container img {
+      width: 180px;
+      height: 180px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 10px;
+      background: white;
+      display: block;
+    }
+
+    .qr-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      justify-content: center;
+    }
+
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-download {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .btn-download:hover {
+      background: #45a049;
+    }
+
+    .btn-print {
+      background: #2196F3;
+      color: white;
+    }
+
+    .btn-print:hover {
+      background: #0b7dda;
+    }
+
+    .qr-item-footer {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #e0e0e0;
+      font-size: 0.8rem;
+      color: #999;
+    }
+
+    @media (max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="header">
+      <h1>🔲 GENGRAV</h1>
+      <p>QR Code Generation System</p>
+    </div>
+
+    <div class="main-content">
+      <!-- Left Panel: Form -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Component Details</h2>
+        </div>
+        <div class="card-body">
+          <form id="qrForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="componentType">Component Type *</label>
+              <select id="componentType" name="componentType" required>
+                <option value="">Select Component Type</option>
+                <option value="EC">EC - Electronic Component</option>
+                <option value="SLP">SLP - Sleeve Part</option>
+                <option value="RP">RP - Replacement Part</option>
+                <option value="LIN">LIN - Linear Component</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="vendorId">Vendor *</label>
+              <select id="vendorId" name="vendorId" required>
+                <option value="">Select Vendor</option>
+                <option value="101">Vendor 101</option>
+                <option value="102">Vendor 102</option>
+                <option value="103">Vendor 103</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="lotNumber">Lot Number *</label>
+              <select id="lotNumber" name="lotNumber" required>
+                <option value="">Select Lot Number</option>
+                <option value="LOT1234">LOT1234</option>
+                <option value="LOT5678">LOT5678</option>
+                <option value="LOT9012">LOT9012</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="warrantyYears">Warranty Years *</label>
+              <input type="number" id="warrantyYears" name="warrantyYears" value="5" min="1" max="20" required>
+              <span class="hint">1 - 20 years</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="quantity">Quantity *</label>
+              <input type="number" id="quantity" name="quantity" value="1" min="1" max="1000" required>
+              <span class="hint">1 - 1000 items</span>
+            </div>
+
+            <div class="form-group">
+              <label for="manufactureDate">Manufacturing Date *</label>
+              <input type="date" id="manufactureDate" name="manufactureDate" required>
+              <span class="hint">Cannot be in the future</span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-generate">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              Generate 1 QR Code
+            </button>
+            <button type="button" class="btn-reset" onclick="resetForm()">Reset</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="right-panel">
+        <div class="panel-header">
+          <h2>Generated QR Codes (<span id="qrCount">0</span>)</h2>
+        </div>
+        
+        <div id="qrResult" class="qr-result">
+          <div class="empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <p class="empty-title">No QR codes generated yet</p>
+            <p class="empty-subtitle">Fill in the form and click Generate to create QR codes</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set today's date as max for manufacture date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('manufactureDate').setAttribute('max', today);
+    document.getElementById('manufactureDate').value = today;
+
+    let generatedQRCodes = [];
+
+    function updateQuantityInButton() {
+      const quantity = document.getElementById('quantity').value || 1;
+      const btn = document.querySelector('.btn-generate');
+      btn.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        Generate ${quantity} QR Code${quantity > 1 ? 's' : ''}
+      `;
+    }
+
+    document.getElementById('quantity').addEventListener('input', updateQuantityInButton);
+
+    function resetForm() {
+      document.getElementById('itemForm').reset();
+      document.getElementById('manufactureDate').value = today;
+      updateQuantityInButton();
+    }
+
+    async function displayQRCodes(data) {
+      generatedQRCodes.push(data);
+      document.getElementById('qrCount').textContent = generatedQRCodes.length;
+
+      const qrResult = document.getElementById('qrResult');
+      
+      // Load QR code image - check if base64 or file path
+      let qrImageDataUrl = '';
+      if (data.qr_image_url) {
+        if (data.qr_image_url.startsWith('data:image/png;base64,')) {
+          // Already base64 from database
+          qrImageDataUrl = data.qr_image_url;
+        } else {
+          // Legacy file path
+          const imageResult = await window.electronAPI.getQRImage(data.qr_image_url);
+          if (imageResult.success) {
+            qrImageDataUrl = imageResult.dataUrl;
+          }
+        }
+      }
+      
+      const qrCard = document.createElement('div');
+      qrCard.className = 'qr-card';
+      qrCard.innerHTML = `
+        <div class="qr-card-header">
+          <h3>${data.uid}</h3>
+          <span class="status-badge status-${(data.current_status || 'manufactured').toLowerCase()}">${data.current_status || 'manufactured'}</span>
+        </div>
+        <div class="qr-card-body">
+          <div class="qr-info">
+            <div class="info-row">
+              <span class="info-label">Component Type:</span>
+              <span class="info-value">${data.component_type}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Lot Number:</span>
+              <span class="info-value">${data.lot_number}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Vendor ID:</span>
+              <span class="info-value">${data.vendor_id}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Warranty:</span>
+              <span class="info-value">${data.warranty_years} years</span>
+            </div>
+          </div>
+          ${qrImageDataUrl ? `
+          <div class="qr-image">
+            <img src="${qrImageDataUrl}" alt="QR Code for ${data.uid}" style="width: 200px; height: 200px; border: 2px solid #e0e0e0; border-radius: 8px; padding: 10px; background: white; display: block; margin: 10px auto;">
+            <div class="qr-actions" style="text-align: center; margin-top: 10px;">
+              <button onclick="downloadQR('${qrImageDataUrl.replace(/'/g, "\\'")}', '${data.uid}')" style="margin: 0 5px; padding: 6px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">📥 Download</button>
+              <button onclick="printQR('${qrImageDataUrl.replace(/'/g, "\\'")}', '${data.uid}')" style="margin: 0 5px; padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">🖨️ Print</button>
+            </div>
+          </div>
+          ` : '<div class="qr-image" style="text-align: center; padding: 20px; color: #999;"><p>⚠️ QR Code not available</p></div>'}
+        </div>
+        <div class="qr-card-footer">
+          <small>Created: ${new Date(data.created_at || Date.now()).toLocaleString()}</small>
+        </div>
+      `;
+
+      if (generatedQRCodes.length === 1) {
+        qrResult.innerHTML = '';
+      }
+      
+      qrResult.insertBefore(qrCard, qrResult.firstChild);
+    }
+
+    // Helper functions for QR code actions
+    window.downloadQR = function(dataUrl, uid) {
+      const link = document.createElement('a');
+      link.download = `${uid}.png`;
+      link.href = dataUrl;
+      link.click();
+    };
+
+    window.printQR = function(dataUrl, uid) {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print QR Code - ${uid}</title>
+            <style>
+              body { 
+                text-align: center; 
+                padding: 40px; 
+                font-family: Arial, sans-serif; 
+              }
+              img { 
+                max-width: 400px; 
+                margin: 20px auto; 
+                display: block; 
+                border: 2px solid #333;
+                padding: 10px;
+                background: white;
+              }
+              h2 { 
+                margin-bottom: 20px; 
+                font-size: 18px;
+                word-break: break-all;
+              }
+              @media print {
+                body { padding: 20px; }
+              }
+            </style>
+          </head>
+          <body>
+            <h2>${uid}</h2>
+            <img src="${dataUrl}" alt="QR Code">
+            <script>
+              window.onload = function() {
+                window.print();
+                window.onafterprint = function() { window.close(); };
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    };
+
+    document.getElementById('itemForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const componentType = document.getElementById('componentType').value;
+      const lotNumber = document.getElementById('lotNumber').value;
+      const quantity = parseInt(document.getElementById('quantity').value, 10);
+      const vendorId = parseInt(document.getElementById('vendorId').value, 10);
+      const warrantyYears = parseInt(document.getElementById('warrantyYears').value, 10) || 0;
+      const manufactureDate = document.getElementById('manufactureDate').value || null;
+
+      const btn = document.querySelector('.btn-generate');
+      btn.disabled = true;
+      btn.innerHTML = `Generating ${quantity} QR Code${quantity > 1 ? 's' : ''}...`;
+
+      try {
+        // Generate base UID (will be made unique for each item in main process)
+        const uid = `${componentType}-${lotNumber}`;
+        
+        const itemData = {
+          uid: uid,
+          component_type: componentType,
+          lot_number: lotNumber,
+          quantity: quantity,
+          vendor_id: vendorId,
+          warranty_years: warrantyYears,
+          manufacture_date: manufactureDate,
+          current_status: 'manufactured'
+        };
+
+        // Use IPC to create items in database
+        const result = await window.electronAPI.createItem(itemData);
+        
+        if (result.success) {
+          // Display all created items
+          if (result.items && result.items.length > 0) {
+            for (const item of result.items) {
+              await displayQRCodes(item);
+            }
+            alert(`Successfully generated ${result.count} QR code${result.count > 1 ? 's' : ''}!`);
+          }
+        } else {
+          alert(`Error: ${result.error || 'Failed to generate QR code'}`);
+        }
+      } catch (error) {
+        alert(`Error: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+        updateQuantityInButton();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -16,8 +16,10 @@ from datetime import datetime
 
 from .database import get_db, engine, Base
 from . import models
-from .engraving_queue import EngravingQueueManager, engraving_queue as rq_queue
-from .engraving_worker import process_engraving_job
+# Commenting out engraving imports for now - not needed for QR scanning
+# from .engraving_queue import EngravingQueueManager, engraving_queue as rq_queue
+# from .engraving_worker import process_engraving_job
+from .auth import router as auth_router
 
 load_dotenv()
 
@@ -25,6 +27,9 @@ load_dotenv()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="IRF Backend (App A)")
+
+# Include authentication routes
+app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 
 # MinIO config
 S3_ENDPOINT = os.getenv("S3_ENDPOINT", "http://localhost:9000")
@@ -52,7 +57,7 @@ class ItemCreateReq(BaseModel):
     qr_size: str = Field(
         ..., 
         description="QR code size (options: '250x250', '125x125', '100x100', '50x50')",
-        regex="^(250x250|125x125|100x100|50x50)$"
+        pattern="^(250x250|125x125|100x100|50x50)$"
     )
 
 class EngraveRequest(BaseModel):
@@ -124,79 +129,84 @@ def create_items(payload: ItemCreateReq, db: Session = Depends(get_db)):
         img.save(bio, format="PNG")
         bio.seek(0)
 
-        key = f"qrs/{item.uid}.png"
-        s3.put_object(Bucket=S3_BUCKET, Key=key, Body=bio.getvalue(), ContentType="image/png")
-
-        item.qr_image_url = f"{S3_ENDPOINT}/{S3_BUCKET}/{key}"
+        # Store QR code as base64 in database (no S3 needed)
+        import base64
+        qr_base64 = base64.b64encode(bio.getvalue()).decode('utf-8')
+        item.qr_image_url = f"data:image/png;base64,{qr_base64}"
+        
         db.commit()
         return item
 
     raise HTTPException(status_code=500, detail="Could not generate unique UID")
 
 
-@app.post("/api/engrave", response_model=EngravingStatusResponse)
-def add_to_engraving_queue(request: EngraveRequest, db: Session = Depends(get_db)):
+# Engraving endpoints commented out - not needed for QR scanning feature
+# @app.post("/api/engrave", response_model=EngravingStatusResponse)
+# def add_to_engraving_queue(request: EngraveRequest, db: Session = Depends(get_db)):
+#     ...
+
+# @app.get("/api/engrave/queue", response_model=Dict[str, List[Dict[str, Any]]])
+# def get_engraving_queue(db: Session = Depends(get_db)):
+#     ...
+
+# @app.get("/api/items/{uid}/engraving-status", response_model=EngravingStatusResponse)
+# def get_engraving_status(uid: str, db: Session = Depends(get_db)):
+#     ...
+
+@app.get("/api/items/{uid}")
+def get_item_by_uid(uid: str, db: Session = Depends(get_db)):
     """
-    Add an item to the engraving queue
+    Get item details by UID (for QR code scanning)
     """
-    # Find the item
-    item = db.query(models.Item).filter(models.Item.uid == request.uid).first()
+    item = db.query(models.Item).filter(models.Item.uid == uid).first()
+    
     if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found"
         )
     
-    if not item.qr_image_url:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Item does not have a QR code"
-        )
-    
-    # Convert PNG URL to SVG URL if needed
-    svg_url = item.qr_image_url
-    if svg_url.endswith('.png'):
-        svg_url = svg_url[:-4] + '.svg'
-    
-    # Add to queue
-    queue_manager = EngravingQueueManager(db)
-    result = queue_manager.add_to_queue(item.uid, svg_url)
-    
-    # Enqueue the job for processing
-    job = rq_queue.enqueue(
-        process_engraving_job,
-        result['job_id'],
-        job_id=f"engrave_{result['job_id']}",
-        result_ttl=86400  # Keep results for 24 hours
-    )
-    
     return {
-        "status": result['status'],
-        "job_id": result['job_id'],
-        "position": result['position'],
-        "created_at": datetime.now()
+        "uid": item.uid,
+        "component_type": item.component_type,
+        "lot_number": item.lot_number,
+        "vendor_id": item.vendor_id,
+        "quantity": item.quantity,
+        "warranty_years": item.warranty_years,
+        "manufacture_date": item.manufacture_date.isoformat() if item.manufacture_date else None,
+        "current_status": item.current_status,
+        "qr_image_url": item.qr_image_url,
+        "meta": item.meta,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "updated_at": item.updated_at.isoformat() if item.updated_at else None
     }
 
-@app.get("/api/engrave/queue", response_model=Dict[str, List[Dict[str, Any]]])
-def get_engraving_queue(db: Session = Depends(get_db)):
+@app.get("/api/items")
+def get_all_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
-    Get the current status of the engraving queue
+    Get all items with pagination
     """
-    queue_manager = EngravingQueueManager(db)
-    return queue_manager.get_queue_status()
+    items = db.query(models.Item).offset(skip).limit(limit).all()
+    return items
 
-@app.get("/api/items/{uid}/engraving-status", response_model=EngravingStatusResponse)
-def get_engraving_status(uid: str, db: Session = Depends(get_db)):
+@app.put("/api/items/{uid}")
+def update_item_status(uid: str, status: str, db: Session = Depends(get_db)):
     """
-    Get the engraving status for an item
+    Update item status
     """
-    queue_manager = EngravingQueueManager(db)
-    status = queue_manager.get_job_status(uid)
+    item = db.query(models.Item).filter(models.Item.uid == uid).first()
     
-    if status.get('status') == 'not_found':
+    if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No engraving job found for this item"
+            detail="Item not found"
         )
     
-    return status
+    item.current_status = status
+    item.updated_at = datetime.now()
+    db.commit()
+    db.refresh(item)
+    
+    return item
+
+

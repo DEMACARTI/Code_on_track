@@ -4,13 +4,27 @@ require('dotenv').config({ path: path.join(__dirname, '../../App_a/.env') });
 
 class DatabaseClient {
   constructor() {
-    this.pool = new Pool({
-      host: 'localhost',
-      port: 5433,
-      database: 'irf_dev',
-      user: 'irf_user',
-      password: 'irf_pass'
-    });
+    // Use Supabase connection from environment or fallback to direct connection
+    const dbUrl = process.env.DATABASE_URL;
+    
+    if (dbUrl) {
+      // Use DATABASE_URL from .env (Supabase connection)
+      this.pool = new Pool({
+        connectionString: dbUrl,
+        ssl: { rejectUnauthorized: false }
+      });
+      console.log('✅ Connected to Supabase database');
+    } else {
+      // Fallback to localhost (for development)
+      this.pool = new Pool({
+        host: 'localhost',
+        port: 5433,
+        database: 'irf_dev',
+        user: 'irf_user',
+        password: 'irf_pass'
+      });
+      console.log('⚠️  Connected to local database');
+    }
   }
 
   async query(text, params) {
@@ -189,6 +203,19 @@ class DatabaseClient {
 
   async close() {
     await this.pool.end();
+  }
+
+  // Additional helper methods
+  async getItemsByBatch(batchId) {
+    const query = 'SELECT * FROM items WHERE batch_id = $1 ORDER BY created_at ASC';
+    const result = await this.query(query, [batchId]);
+    return result.rows;
+  }
+
+  async getItemByQRCode(qrCode) {
+    const query = 'SELECT * FROM items WHERE qr_code = $1 OR uid = $1';
+    const result = await this.query(query, [qrCode]);
+    return result.rows[0];
   }
 }
 

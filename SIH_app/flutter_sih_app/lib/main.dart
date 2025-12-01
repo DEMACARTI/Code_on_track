@@ -18,14 +18,14 @@ class MyApp extends StatelessWidget {
     // ============================================================
     // BACKEND CONFIGURATION
     // ============================================================
-    // For testing: Use MockAuthService and MockQRScanService
-    final authService = MockAuthService();
-    final qrService = MockQRScanService();
+    // Production: Use RestAuthService and RestQRScanService
+    const String backendBaseUrl = 'http://10.12.76.248:8000';
+    final authService = RestAuthService(baseUrl: backendBaseUrl);
+    final qrService = RestQRScanService(baseUrl: backendBaseUrl);
 
-    // For production: Uncomment below and update baseUrl
-    // const String backendBaseUrl = 'https://api.yourcompany.com';
-    // final authService = RestAuthService(baseUrl: backendBaseUrl);
-    // final qrService = RestQRScanService(baseUrl: backendBaseUrl);
+    // For testing with mock data: Uncomment below
+    // final authService = MockAuthService();
+    // final qrService = MockQRScanService();
 
     return MaterialApp(
       title: 'Rail_Chinh',
