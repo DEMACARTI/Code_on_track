@@ -132,20 +132,26 @@ class RestQRScanService implements QRScanService {
     String? photoPath,
   }) async {
     final uri = Uri.parse('$baseUrl/qr/inspection');
-    var request = http.MultipartRequest('POST', uri);
-    request.fields['qr_id'] = qrId;
-    request.fields['status'] = status;
-    request.fields['remark'] = remark;
-    if (photoPath != null) {
-      request.files.add(await http.MultipartFile.fromPath('photo', photoPath));
-    }
     try {
-      final streamed = await request.send();
-      if (streamed.statusCode == 200) {
+      final resp = await httpClient
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'qr_id': qrId,
+              'status': status,
+              'remark': remark,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+      
+      print('Inspection upload response: ${resp.statusCode} - ${resp.body}');
+      
+      if (resp.statusCode == 200) {
         return true;
       }
     } catch (e) {
-      // Upload error
+      print('Inspection upload error: $e');
     }
     return false;
   }

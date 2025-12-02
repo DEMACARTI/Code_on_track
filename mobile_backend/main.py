@@ -74,6 +74,31 @@ class LoginResponse(BaseModel):
 class StatusUpdate(BaseModel):
     current_status: str
 
+class InspectionRequest(BaseModel):
+    qr_id: str
+    status: str
+    remark: str
+    inspector_id: Optional[int] = None
+
+# Database Model for Inspections
+class Inspection(Base):
+    __tablename__ = "inspections"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    item_uid = Column(String(100), nullable=False, index=True)
+    status = Column(String(50), nullable=False)
+    remark = Column(Text)
+    inspector_id = Column(Integer)
+    photo_url = Column(Text)
+    inspected_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+# Create tables if they don't exist
+try:
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+except Exception as e:
+    print(f"Warning: Could not create tables: {e}")
+
 # Create FastAPI app
 app = FastAPI(
     title="RailChinh Mobile Backend",
@@ -247,6 +272,77 @@ def update_item(uid: str, status_update: StatusUpdate):
             "current_status": item.current_status,
             "updated_at": item.updated_at.isoformat()
         }
+    finally:
+        db.close()
+
+@app.post("/qr/inspection")
+def submit_inspection(request: InspectionRequest):
+    """
+    Submit inspection result for a QR scanned item
+    """
+    db = SessionLocal()
+    try:
+        # Check if item exists
+        item = db.query(Item).filter(Item.uid == request.qr_id).first()
+        
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        # Create inspection record
+        inspection = Inspection(
+            item_uid=request.qr_id,
+            status=request.status,
+            remark=request.remark,
+            inspector_id=request.inspector_id,
+            inspected_at=datetime.utcnow()
+        )
+        db.add(inspection)
+        
+        # Update item status based on inspection
+        if request.status in ["approved", "passed", "ok"]:
+            item.current_status = "inspected"
+        elif request.status in ["rejected", "failed", "damaged"]:
+            item.current_status = "rejected"
+        else:
+            item.current_status = request.status
+        
+        item.updated_at = datetime.utcnow()
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Inspection submitted successfully",
+            "inspection_id": inspection.id,
+            "item_uid": request.qr_id,
+            "new_status": item.current_status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error saving inspection: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/api/inspections/{uid}")
+def get_inspections(uid: str):
+    """
+    Get all inspections for an item
+    """
+    db = SessionLocal()
+    try:
+        inspections = db.query(Inspection).filter(Inspection.item_uid == uid).order_by(Inspection.inspected_at.desc()).all()
+        return [
+            {
+                "id": insp.id,
+                "item_uid": insp.item_uid,
+                "status": insp.status,
+                "remark": insp.remark,
+                "inspector_id": insp.inspector_id,
+                "inspected_at": insp.inspected_at.isoformat() if insp.inspected_at else None
+            }
+            for insp in inspections
+        ]
     finally:
         db.close()
 
