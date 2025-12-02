@@ -19,7 +19,8 @@ class MyApp extends StatelessWidget {
     // BACKEND CONFIGURATION
     // ============================================================
     // Production: Use RestAuthService and RestQRScanService
-    const String backendBaseUrl = 'http://10.12.76.248:8000';
+    // Render cloud deployment - works on any device with internet
+    const String backendBaseUrl = 'https://railchinh-mobile-backend.onrender.com';
     final authService = RestAuthService(baseUrl: backendBaseUrl);
     final qrService = RestQRScanService(baseUrl: backendBaseUrl);
 

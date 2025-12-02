@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internet permission required for API calls -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Camera permission required for QR scanning -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Declare the camera hardware feature. Set required="true" to prevent installs on devices without a camera. If you want installs on devices without a camera, set required="false". -->
@@ -6,7 +8,8 @@
     <application
         android:label="RailChinh"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

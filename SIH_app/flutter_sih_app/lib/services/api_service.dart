@@ -1,25 +1,69 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // Computer IP address for API connection
-  static const String baseUrl = 'http://10.12.76.248:8000';
-  
-  // Authentication endpoints
-  Future<Map<String, dynamic>> login(String username, String password) async {
+  // Backend URL - change this to your server IP for physical device
+  static const String baseUrl = 'http://localhost:8000';
+
+  // Check connection to backend
+  Future<Map<String, dynamic>> checkConnection() async {
+    HttpClient? client;
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': username,
-          'password': password,
-        }),
-      );
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 5);
+      final request = await client.getUrl(Uri.parse('$baseUrl/health'));
+      final response = await request.close().timeout(const Duration(seconds: 5));
+      
+      if (response.statusCode == 200) {
+        return {'connected': true, 'message': 'Connected to server'};
+      } else {
+        return {'connected': false, 'message': 'Server error ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'connected': false, 'message': 'Cannot reach server'};
+    } finally {
+      client?.close();
+    }
+  }
+
+  // Login using dart:io HttpClient
+  Future<Map<String, dynamic>> login(String username, String password) async {
+    HttpClient? client;
+    try {
+      print('=== FLUTTER LOGIN ATTEMPT ===');
+      print('URL: $baseUrl/api/auth/login');
+      print('Username: "$username"');
+      
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 15);
+      
+      // Create POST request
+      final uri = Uri.parse('$baseUrl/api/auth/login');
+      final request = await client.postUrl(uri);
+      
+      // Set headers
+      request.headers.contentType = ContentType.json;
+      request.headers.set('Accept', 'application/json');
+      
+      // Create and write body
+      final body = jsonEncode({
+        'username': username.trim(),
+        'password': password.trim(),
+      });
+      print('Body: $body');
+      request.write(body);
+      
+      // Get response
+      final response = await request.close().timeout(const Duration(seconds: 15));
+      final responseBody = await response.transform(utf8.decoder).join();
+      
+      print('Status: ${response.statusCode}');
+      print('Response: $responseBody');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(responseBody);
         
         // Save token and user info
         final prefs = await SharedPreferences.getInstance();
@@ -27,103 +71,121 @@ class ApiService {
         await prefs.setString('username', data['user']['username'] ?? '');
         await prefs.setString('department', data['user']['department'] ?? '');
         
+        print('SUCCESS: Logged in as ${data['user']['username']}');
         return {'success': true, 'data': data};
       } else {
-        return {
-          'success': false,
-          'error': 'Login failed: ${response.body}'
-        };
+        String errorMsg = 'Login failed';
+        try {
+          final errorData = jsonDecode(responseBody);
+          errorMsg = errorData['detail'] ?? responseBody;
+        } catch (_) {
+          errorMsg = responseBody.isNotEmpty ? responseBody : 'Unknown error';
+        }
+        print('FAILED: $errorMsg');
+        return {'success': false, 'error': errorMsg};
       }
+    } on TimeoutException {
+      print('ERROR: Timeout');
+      return {'success': false, 'error': 'Connection timeout'};
+    } on SocketException catch (e) {
+      print('ERROR: Socket - $e');
+      return {'success': false, 'error': 'Cannot connect to server'};
     } catch (e) {
-      return {'success': false, 'error': 'Connection error: $e'};
+      print('ERROR: $e');
+      return {'success': false, 'error': 'Error: $e'};
+    } finally {
+      client?.close();
     }
   }
 
   // Get item by UID from QR code
   Future<Map<String, dynamic>> getItemByUid(String uid) async {
+    HttpClient? client;
     try {
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/items/$uid'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final request = await client.getUrl(Uri.parse('$baseUrl/api/items/$uid'));
+      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Authorization', 'Bearer $token');
+      
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(responseBody);
         return {'success': true, 'item': data};
       } else if (response.statusCode == 404) {
         return {'success': false, 'error': 'Item not found'};
       } else {
-        return {
-          'success': false,
-          'error': 'Failed to fetch item: ${response.body}'
-        };
+        return {'success': false, 'error': 'Failed to fetch item'};
       }
     } catch (e) {
       return {'success': false, 'error': 'Connection error: $e'};
+    } finally {
+      client?.close();
     }
   }
 
   // Get all items
   Future<Map<String, dynamic>> getAllItems() async {
+    HttpClient? client;
     try {
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/items'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final request = await client.getUrl(Uri.parse('$baseUrl/api/items'));
+      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Authorization', 'Bearer $token');
+      
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(responseBody);
         return {'success': true, 'items': data};
       } else {
-        return {
-          'success': false,
-          'error': 'Failed to fetch items: ${response.body}'
-        };
+        return {'success': false, 'error': 'Failed to fetch items'};
       }
     } catch (e) {
       return {'success': false, 'error': 'Connection error: $e'};
+    } finally {
+      client?.close();
     }
   }
 
   // Update item status
   Future<Map<String, dynamic>> updateItemStatus(
       String uid, String status) async {
+    HttpClient? client;
     try {
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? '';
 
-      final response = await http.put(
-        Uri.parse('$baseUrl/api/items/$uid'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'current_status': status}),
-      );
+      final request = await client.putUrl(Uri.parse('$baseUrl/api/items/$uid'));
+      request.headers.contentType = ContentType.json;
+      request.headers.set('Authorization', 'Bearer $token');
+      request.write(jsonEncode({'current_status': status}));
+      
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(responseBody);
         return {'success': true, 'item': data};
       } else {
-        return {
-          'success': false,
-          'error': 'Failed to update item: ${response.body}'
-        };
+        return {'success': false, 'error': 'Failed to update item'};
       }
     } catch (e) {
       return {'success': false, 'error': 'Connection error: $e'};
+    } finally {
+      client?.close();
     }
   }
 

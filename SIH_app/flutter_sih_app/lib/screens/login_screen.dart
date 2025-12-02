@@ -16,6 +16,30 @@ class _LoginScreenState extends State<LoginScreen> {
   
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool? _isConnected;
+  String _connectionMessage = 'Checking connection...';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnection();
+  }
+
+  Future<void> _checkConnection() async {
+    setState(() {
+      _isConnected = null;
+      _connectionMessage = 'Checking connection...';
+    });
+    
+    final result = await _apiService.checkConnection();
+    
+    if (mounted) {
+      setState(() {
+        _isConnected = result['connected'];
+        _connectionMessage = result['message'];
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -36,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final result = await _apiService.login(
         _usernameController.text.trim(),
-        _passwordController.text,
+        _passwordController.text.trim(),
       );
 
       if (!mounted) return;
@@ -124,7 +148,52 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.grey,
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 12),
+                        
+                        // Connection status indicator
+                        GestureDetector(
+                          onTap: _checkConnection,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _isConnected == null 
+                                  ? Colors.grey.shade200
+                                  : _isConnected! 
+                                      ? Colors.green.shade100 
+                                      : Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _isConnected == null
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : Icon(
+                                        _isConnected! ? Icons.check_circle : Icons.error,
+                                        color: _isConnected! ? Colors.green : Colors.red,
+                                        size: 16,
+                                      ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _connectionMessage,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _isConnected == null 
+                                        ? Colors.grey.shade700
+                                        : _isConnected! 
+                                            ? Colors.green.shade700 
+                                            : Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                         
                         // Username field
                         TextFormField(
@@ -250,11 +319,24 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildCredential(String dept, String user, String pass) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        '$dept: $user / $pass',
-        style: const TextStyle(
-          fontSize: 12,
-          fontFamily: 'monospace',
+      child: GestureDetector(
+        onTap: () {
+          _usernameController.text = user;
+          _passwordController.text = pass;
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            '$dept: $user / $pass',
+            style: const TextStyle(
+              fontSize: 12,
+              fontFamily: 'monospace',
+            ),
+          ),
         ),
       ),
     );

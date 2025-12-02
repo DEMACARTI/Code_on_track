@@ -64,6 +64,10 @@ class RestAuthService implements AuthService {
     final uri = Uri.parse('$baseUrl$endpoint');
 
     try {
+      print('=== AUTH SERVICE LOGIN ===');
+      print('URL: $uri');
+      print('Username: $username');
+      
       final resp = await httpClient
           .post(
             uri,
@@ -72,13 +76,20 @@ class RestAuthService implements AuthService {
           )
           .timeout(const Duration(seconds: 10));
 
+      print('Response status: ${resp.statusCode}');
+      print('Response body: ${resp.body}');
+
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body) as Map<String, dynamic>;
-        return parseResponse(data);
+        final user = parseResponse(data);
+        print('Parsed user: ${user?.username}');
+        return user;
+      } else {
+        print('Login failed with status: ${resp.statusCode}');
       }
     } catch (e) {
       // Network or parsing error - return null (fail silently)
-      // For debugging, uncomment: debugPrint('Authentication error: $e');
+      print('Authentication error: $e');
     }
 
     return null;

@@ -22,10 +22,23 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
   String _selectedStatus = 'operational';
   bool _isSubmitting = false;
 
+  // All valid status values
+  static const List<String> _validStatuses = [
+    'operational',
+    'manufactured',
+    'needs_maintenance',
+    'damaged',
+    'inspected',
+    'rejected',
+  ];
+
   @override
   void initState() {
     super.initState();
-    _selectedStatus = widget.item.status;
+    // Use item status if valid, otherwise default to 'operational'
+    _selectedStatus = _validStatuses.contains(widget.item.status)
+        ? widget.item.status
+        : 'operational';
   }
 
   @override
@@ -269,6 +282,16 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
                             ),
                           ),
                           DropdownMenuItem(
+                            value: 'inspected',
+                            child: Row(
+                              children: [
+                                Icon(Icons.verified, color: Colors.teal, size: 20),
+                                SizedBox(width: 8),
+                                Text('Inspected'),
+                              ],
+                            ),
+                          ),
+                          DropdownMenuItem(
                             value: 'needs_maintenance',
                             child: Row(
                               children: [
@@ -285,6 +308,16 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
                                 Icon(Icons.warning, color: Colors.red, size: 20),
                                 SizedBox(width: 8),
                                 Text('Damaged'),
+                              ],
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'rejected',
+                            child: Row(
+                              children: [
+                                Icon(Icons.cancel, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Text('Rejected'),
                               ],
                             ),
                           ),
