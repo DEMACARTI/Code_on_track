@@ -37,3 +37,4 @@ yarn-error.log*
 # Build directories
 dist/
 build/
+*.zip
