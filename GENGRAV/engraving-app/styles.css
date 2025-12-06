@@ -385,4 +385,172 @@ button:disabled {
   border-left: 4px solid #11998e;
   font-size: 13px;
   line-height: 1.5;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.queue-item:hover {
+  background: #f0f9f8;
+  transform: translateX(4px);
+}
+
+/* QR Preview Styles */
+.qr-preview-container {
+  margin-bottom: 16px;
+}
+
+.qr-preview {
+  background: #f8f9fa;
+  border: 2px dashed #d0d0d0;
+  border-radius: 8px;
+  padding: 20px;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.qr-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 4px;
+}
+
+.placeholder-text {
+  color: #999;
+  font-size: 14px;
+}
+
+.gcode-status {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.gcode-status .success {
+  color: #28a745;
+}
+
+.gcode-status .error {
+  color: #dc3545;
+}
+
+/* Items List Styles */
+.items-list {
+  max-height: 300px;
+  overflow-y: auto;
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.item-card {
+  background: white;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  border-left: 4px solid #6c757d;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.item-card:hover {
+  background: #f0f9f8;
+  border-left-color: #11998e;
+}
+
+.item-card.selected {
+  background: #e8f5e9;
+  border-left-color: #28a745;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.item-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.item-status.manufactured {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.item-status.engraved {
+  background: #d4edda;
+  color: #155724;
+}
+
+.item-status.inspected {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.item-details {
+  font-size: 12px;
+  color: #666;
+}
+
+.qr-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #28a745;
+  color: white;
+}
+
+.qr-badge.missing {
+  background: #dc3545;
+}
+
+/* G-code Preview Styles */
+.gcode-preview {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.gcode-preview pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Form input number */
+.form-group input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  background: white;
+}
+
+.form-group input[type="number"]:focus {
+  outline: none;
+  border-color: #11998e;
+  box-shadow: 0 0 0 3px rgba(17, 153, 142, 0.1);
 }

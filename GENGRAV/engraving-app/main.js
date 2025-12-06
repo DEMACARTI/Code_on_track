@@ -79,6 +79,15 @@ ipcMain.handle('home-machine', async () => {
   }
 });
 
+ipcMain.handle('go-to-home', async () => {
+  try {
+    await grblController.goToHome();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('test-engrave', async () => {
   try {
     await grblController.testEngrave();
@@ -240,6 +249,62 @@ ipcMain.handle('refresh-queue', async () => {
   try {
     const jobs = await grblController.getPendingJobs();
     return { success: true, jobs };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// New handlers for automatic G-code generation from base64 QR codes
+ipcMain.handle('get-all-items', async () => {
+  try {
+    const items = await grblController.dbClient.getAllItems();
+    return { success: true, items };
+  } catch (error) {
+    return { success: false, error: error.message, items: [] };
+  }
+});
+
+ipcMain.handle('generate-gcode-from-base64', async (event, options) => {
+  try {
+    const { base64Data, size, itemUid, laserPower, feedRate } = options;
+    
+    // Update generator settings
+    grblController.gcodeGenerator.size = size || 30;
+    if (laserPower !== undefined) {
+      // Convert percentage (0-100) to GRBL S value (0-1000)
+      grblController.gcodeGenerator.laserPower = Math.round(laserPower * 10);
+    }
+    if (feedRate !== undefined) {
+      grblController.gcodeGenerator.feedRate = feedRate;
+    }
+    
+    // Generate G-code from base64 data URL
+    const gcode = grblController.gcodeGenerator.generateFromDataURL(base64Data);
+    const lineCount = gcode.split('\n').filter(line => line.trim() && !line.startsWith(';')).length;
+    
+    return { success: true, gcode, lineCount, itemUid };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('execute-gcode', async (event, gcode) => {
+  try {
+    if (!grblController.isConnected) {
+      return { success: false, error: 'Machine not connected' };
+    }
+    
+    await grblController.executeGCode(gcode);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-item-status', async (event, uid, status) => {
+  try {
+    await grblController.dbClient.updateItemStatus(uid, status);
+    return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }

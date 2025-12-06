@@ -1,19 +1,47 @@
 const { Pool } = require('pg');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../App_a/.env') });
+
+// Try to load .env from multiple locations
+const envPaths = [
+  path.join(__dirname, '../engraving-app/.env'),  // GENGRAV/engraving-app/.env
+  path.join(__dirname, '../../App_a/.env'),        // App_a/.env (fallback)
+  path.join(__dirname, '../../.env')               // Root .env (fallback)
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  try {
+    require('dotenv').config({ path: envPath });
+    if (process.env.DATABASE_URL) {
+      console.log(`✅ Loaded environment from: ${envPath}`);
+      envLoaded = true;
+      break;
+    }
+  } catch (e) {
+    // Continue to next path
+  }
+}
+
+if (!envLoaded) {
+  console.log('⚠️  No .env file found, using defaults or environment variables');
+}
 
 class DatabaseClient {
   constructor() {
-    // Use Supabase connection from environment or fallback to direct connection
+    // Use Supabase connection from environment
     const dbUrl = process.env.DATABASE_URL;
     
     if (dbUrl) {
       // Use DATABASE_URL from .env (Supabase connection)
       this.pool = new Pool({
         connectionString: dbUrl,
-        ssl: { rejectUnauthorized: false }
+        ssl: { rejectUnauthorized: false },
+        // Settings for Supabase Transaction Pooler
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 30000
       });
-      console.log('✅ Connected to Supabase database');
+      console.log('✅ Using Supabase database connection');
     } else {
       // Fallback to localhost (for development)
       this.pool = new Pool({
@@ -25,15 +53,43 @@ class DatabaseClient {
       });
       console.log('⚠️  Connected to local database');
     }
+    
+    // Set up error handler to prevent crashes
+    this.pool.on('error', (err) => {
+      console.error('Database pool error:', err.message);
+    });
+    
+    // Test connection on startup
+    this.testConnection();
+  }
+
+  async testConnection() {
+    try {
+      const client = await this.pool.connect();
+      const result = await client.query('SELECT NOW() as current_time');
+      client.release();
+      console.log('✅ Database connection verified at:', result.rows[0].current_time);
+      this.connectionTested = true;
+      return true;
+    } catch (error) {
+      console.error('❌ Database connection failed:', error.message);
+      return false;
+    }
   }
 
   async query(text, params) {
-    const client = await this.pool.connect();
+    let client;
     try {
+      client = await this.pool.connect();
       const result = await client.query(text, params);
       return result;
+    } catch (error) {
+      console.error('Query error:', error.message);
+      throw error;
     } finally {
-      client.release();
+      if (client) {
+        client.release();
+      }
     }
   }
 
@@ -96,6 +152,12 @@ class DatabaseClient {
   async getEngravingJob(jobId) {
     const query = 'SELECT * FROM engraving_queue WHERE id = $1';
     const result = await this.query(query, [jobId]);
+    return result.rows[0];
+  }
+
+  async getEngravingJobByItemUid(itemUid) {
+    const query = 'SELECT * FROM engraving_queue WHERE item_uid = $1 ORDER BY created_at DESC LIMIT 1';
+    const result = await this.query(query, [itemUid]);
     return result.rows[0];
   }
 
@@ -206,15 +268,81 @@ class DatabaseClient {
   }
 
   // Additional helper methods
-  async getItemsByBatch(batchId) {
-    const query = 'SELECT * FROM items WHERE batch_id = $1 ORDER BY created_at ASC';
-    const result = await this.query(query, [batchId]);
+  
+  // Get items by component_type (since there's no batch_id in the schema)
+  async getItemsByComponentType(componentType) {
+    const query = 'SELECT * FROM items WHERE component_type = $1 ORDER BY created_at ASC';
+    const result = await this.query(query, [componentType]);
     return result.rows;
   }
 
-  async getItemByQRCode(qrCode) {
-    const query = 'SELECT * FROM items WHERE qr_code = $1 OR uid = $1';
-    const result = await this.query(query, [qrCode]);
+  // Get items by lot_number (use as batch identifier)
+  async getItemsByLotNumber(lotNumber) {
+    const query = 'SELECT * FROM items WHERE lot_number = $1 ORDER BY created_at ASC';
+    const result = await this.query(query, [lotNumber]);
+    return result.rows;
+  }
+
+  // Legacy method - alias for getItemsByLotNumber
+  async getItemsByBatch(batchId) {
+    // Use lot_number as the batch identifier
+    return await this.getItemsByLotNumber(batchId.toString());
+  }
+
+  // Get item by UID or QR code (uid is the unique identifier)
+  async getItemByQRCode(qrCodeOrUid) {
+    const query = 'SELECT * FROM items WHERE uid = $1';
+    const result = await this.query(query, [qrCodeOrUid]);
+    return result.rows[0];
+  }
+
+  // Get items that need engraving (not yet in queue)
+  async getItemsNeedingEngraving() {
+    const query = `
+      SELECT i.* FROM items i
+      LEFT JOIN engraving_queue eq ON i.uid = eq.item_uid
+      WHERE eq.id IS NULL OR (eq.status = 'failed' AND eq.attempts < eq.max_attempts)
+      ORDER BY i.created_at ASC
+    `;
+    const result = await this.query(query);
+    return result.rows;
+  }
+
+  // Get pending items (manufactured status, not yet engraved)
+  async getPendingItems() {
+    const query = `
+      SELECT * FROM items 
+      WHERE current_status = 'manufactured'
+      ORDER BY created_at ASC
+    `;
+    const result = await this.query(query);
+    return result.rows;
+  }
+
+  // Update item status
+  async updateItemStatus(uid, status) {
+    const query = `
+      UPDATE items 
+      SET current_status = $2, updated_at = NOW()
+      WHERE uid = $1
+      RETURNING *
+    `;
+    const result = await this.query(query, [uid, status]);
+    return result.rows[0];
+  }
+
+  // Get engraving statistics
+  async getEngravingStats() {
+    const query = `
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'PENDING') as pending_count,
+        COUNT(*) FILTER (WHERE status = 'IN_PROGRESS') as in_progress_count,
+        COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed_count,
+        COUNT(*) FILTER (WHERE status = 'FAILED') as failed_count,
+        COUNT(*) as total_count
+      FROM engraving_queue
+    `;
+    const result = await this.query(query);
     return result.rows[0];
   }
 }

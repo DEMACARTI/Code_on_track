@@ -29,6 +29,12 @@ engine_kwargs = {
 # SQLite specific configuration
 if settings.DB_DRIVER == "sqlite":
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # PostgreSQL specific configuration for Supabase
+    engine_kwargs["connect_args"] = {
+        "options": "-c client_encoding=utf8",
+        "sslmode": "require"
+    }
 
 # Create engine - Use DATABASE_URL from env if available (for Supabase)
 database_url = os.getenv("DATABASE_URL") or settings.DATABASE_URI

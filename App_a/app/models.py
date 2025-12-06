@@ -74,8 +74,9 @@ class EngravingHistory(Base):
     # Relationship to EngravingQueue
     engraving_job = relationship("EngravingQueue", back_populates="history")
 
-class User(Base):
-    __tablename__ = "users"
+class AppUser(Base):
+    """User model for the mobile app"""
+    __tablename__ = "app_users"
     
     id = Column(BigInteger, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
@@ -89,7 +90,10 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
     
     __table_args__ = (
-        UniqueConstraint('username', name='uq_users_username'),
-        UniqueConstraint('email', name='uq_users_email'),
+        UniqueConstraint('username', name='uq_app_users_username'),
+        UniqueConstraint('email', name='uq_app_users_email'),
     )
+
+# Alias for backward compatibility
+User = AppUser
 

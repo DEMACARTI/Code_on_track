@@ -6,7 +6,7 @@ import hashlib
 from typing import Optional
 
 from app.database import get_db
-from app.models import User
+from app.models import AppUser
 
 router = APIRouter()
 
@@ -40,10 +40,10 @@ def generate_token(username: str) -> str:
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """
-    Authenticate user and return token
+    Authenticate app user and return token
     """
     # Find user by username
-    user = db.query(User).filter(User.username == request.username).first()
+    user = db.query(AppUser).filter(AppUser.username == request.username).first()
     
     if not user:
         raise HTTPException(
