@@ -3,9 +3,14 @@ services:
     name: railchinh-mobile-backend
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
       - key: DATABASE_URL
         sync: false
       - key: PYTHON_VERSION
         value: "3.11"
+      - key: PORT
+        value: 10000
+    plan: free
+    healthCheckPath: /health
+    rootDir: mobile_backend

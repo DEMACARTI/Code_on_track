@@ -19,7 +19,7 @@ class QRScannerService {
         final data = parseQRData(qrData);
         uid = data['uid'] ?? '';
       } else if (qrData.startsWith('http')) {
-        // URL format: http://localhost:8000/scan/IRF-XXX-XXX
+        // URL format: https://railchinh-mobile-backend.onrender.com/scan/IRF-XXX-XXX
         uid = qrData.split('/').last;
       } else {
         // Plain UID
