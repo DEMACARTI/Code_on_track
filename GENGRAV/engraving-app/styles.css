@@ -519,6 +519,35 @@ button:disabled {
   background: #dc3545;
 }
 
+.batch-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #17a2b8;
+  color: white;
+}
+
+.batch-stats {
+  background: #f8f9fa;
+  border-left: 3px solid #17a2b8;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.batch-stats .stats-line {
+  margin: 5px 0;
+  font-size: 13px;
+  color: #495057;
+}
+
+.batch-stats .stats-line strong {
+  color: #212529;
+}
+
 /* G-code Preview Styles */
 .gcode-preview {
   background: #1e1e1e;

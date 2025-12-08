@@ -9,7 +9,8 @@ contextBridge.exposeInMainWorld(
     getAllItems: () => ipcRenderer.invoke('get-all-items'),
     getItem: (uid) => ipcRenderer.invoke('get-item', uid),
     updateItem: (uid, updates) => ipcRenderer.invoke('update-item', uid, updates),
-    getQRImage: (qrPath) => ipcRenderer.invoke('get-qr-image', qrPath)
+    getQRImage: (qrPath) => ipcRenderer.invoke('get-qr-image', qrPath),
+    onCreationProgress: (callback) => ipcRenderer.on('creation-progress', (event, data) => callback(data))
   }
 );
 

@@ -9,10 +9,10 @@ import VendorDetail from './pages/VendorDetail';
 import { Login } from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Items from './pages/Items';
+import ItemDetail from './pages/ItemDetail';
 import ImportItems from './pages/ImportItems';
 
 // Placeholder components for missing pages
-const ItemDetail = () => <div className="p-8">Item Detail (Not Implemented)</div>;
 const Engravings = () => <div className="p-8">Engravings (Not Implemented)</div>;
 
 const queryClient = new QueryClient();

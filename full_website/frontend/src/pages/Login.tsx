@@ -10,14 +10,27 @@ import api from '../api/axios';
 export const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
+    // Load saved credentials on mount
+    React.useEffect(() => {
+        const savedUsername = localStorage.getItem('savedUsername');
+        const savedPassword = localStorage.getItem('savedPassword');
+        const wasRemembered = localStorage.getItem('rememberMe') === 'true';
+
+        if (wasRemembered && savedUsername && savedPassword) {
+            setUsername(savedUsername);
+            setPassword(savedPassword);
+            setRememberMe(true);
+        }
+    }, []);
 
 
-    // ... inside component
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -26,6 +39,18 @@ export const Login = () => {
         try {
             const response = await api.post('/auth/login', { username, password });
             const { access_token } = response.data;
+
+            // Save credentials if "Remember me" is checked
+            if (rememberMe) {
+                localStorage.setItem('savedUsername', username);
+                localStorage.setItem('savedPassword', password);
+                localStorage.setItem('rememberMe', 'true');
+            } else {
+                // Clear saved credentials if not remembering
+                localStorage.removeItem('savedUsername');
+                localStorage.removeItem('savedPassword');
+                localStorage.removeItem('rememberMe');
+            }
 
             login(access_token);
             navigate('/dashboard');
@@ -93,6 +118,22 @@ export const Login = () => {
                             placeholder="Enter your password"
                             leftIcon={<Lock className="h-4 w-4" />}
                         />
+
+                        <div className="flex items-center">
+                            <input
+                                id="remember-me"
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                            />
+                            <label
+                                htmlFor="remember-me"
+                                className="ml-2 block text-sm text-slate-700 cursor-pointer"
+                            >
+                                Remember me
+                            </label>
+                        </div>
 
                         <Button
                             type="submit"

@@ -99,6 +99,15 @@ class ItemOut(BaseModel):
         from_attributes = True
 
 
+class PaginatedItemsResponse(BaseModel):
+    """Paginated items response"""
+    items: List[ItemOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
 class ItemDetail(ItemOut):
     """Detailed item response with related data"""
     engravings: List[EngravingJobOut] = []

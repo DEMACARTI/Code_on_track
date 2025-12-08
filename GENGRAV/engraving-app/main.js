@@ -310,6 +310,34 @@ ipcMain.handle('update-item-status', async (event, uid, status) => {
   }
 });
 
+// Batch-related handlers
+ipcMain.handle('get-all-batches', async () => {
+  try {
+    const batches = await grblController.dbClient.getAllBatches();
+    return { success: true, batches };
+  } catch (error) {
+    return { success: false, error: error.message, batches: [] };
+  }
+});
+
+ipcMain.handle('get-items-by-batch', async (event, batchRefId) => {
+  try {
+    const items = await grblController.dbClient.getItemsByBatchRefId(batchRefId);
+    return { success: true, items };
+  } catch (error) {
+    return { success: false, error: error.message, items: [] };
+  }
+});
+
+ipcMain.handle('get-batch-stats', async (event, batchRefId) => {
+  try {
+    const stats = await grblController.dbClient.getBatchStats(batchRefId);
+    return { success: true, stats };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();

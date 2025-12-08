@@ -211,6 +211,22 @@
         </div>
 
         <div class="panel-section">
+          <h2>Batch Selection</h2>
+          <div class="form-group">
+            <label for="batchFilter">Filter by Batch</label>
+            <select id="batchFilter">
+              <option value="">All Items (No Filter)</option>
+            </select>
+          </div>
+          <div id="batchStats" class="batch-stats" style="display: none;">
+            <p class="stats-line"><strong>Total:</strong> <span id="batchTotal">0</span> QR codes</p>
+            <p class="stats-line"><strong>Engraved:</strong> <span id="batchEngraved">0</span></p>
+            <p class="stats-line"><strong>Pending:</strong> <span id="batchPending">0</span></p>
+          </div>
+          <button id="refreshBatchesBtn" class="btn-secondary btn-sm">Refresh Batches</button>
+        </div>
+
+        <div class="panel-section">
           <h2>Available Items</h2>
           <div id="itemsList" class="items-list">
             <div class="empty-state-small">
@@ -307,11 +323,76 @@
       }
     }
 
+    // Refresh batches list
+    async function refreshBatches() {
+      log('Loading batches from database...', 'info');
+      
+      const result = await ipcRenderer.invoke('get-all-batches');
+      const batchFilter = document.getElementById('batchFilter');
+      
+      // Keep current selection
+      const currentValue = batchFilter.value;
+      
+      // Reset options
+      batchFilter.innerHTML = '<option value="">All Items (No Filter)</option>';
+      
+      if (result.success && result.batches.length > 0) {
+        log(`Loaded ${result.batches.length} batches`, 'success');
+        
+        result.batches.forEach((batch) => {
+          const option = document.createElement('option');
+          option.value = batch.batch_ref_id;
+          option.textContent = `${batch.batch_ref_id} - ${batch.component_type} (${parseInt(batch.qr_count).toLocaleString()} QRs)`;
+          batchFilter.appendChild(option);
+        });
+        
+        // Restore selection if it still exists
+        if (currentValue) {
+          batchFilter.value = currentValue;
+        }
+      } else {
+        log('No batches found', 'info');
+      }
+    }
+
+    // Handle batch filter change
+    async function onBatchFilterChange() {
+      const batchRefId = document.getElementById('batchFilter').value;
+      const batchStats = document.getElementById('batchStats');
+      
+      if (batchRefId) {
+        // Load batch statistics
+        const statsResult = await ipcRenderer.invoke('get-batch-stats', batchRefId);
+        if (statsResult.success && statsResult.stats) {
+          const stats = statsResult.stats;
+          document.getElementById('batchTotal').textContent = parseInt(stats.total_count).toLocaleString();
+          document.getElementById('batchEngraved').textContent = parseInt(stats.engraved_count).toLocaleString();
+          document.getElementById('batchPending').textContent = parseInt(stats.manufactured_count).toLocaleString();
+          batchStats.style.display = 'block';
+          log(`Filtering by batch: ${batchRefId}`, 'info');
+        }
+      } else {
+        batchStats.style.display = 'none';
+        log('Showing all items', 'info');
+      }
+      
+      // Refresh items with filter
+      await refreshItems();
+    }
+
     // Refresh available items from database
     async function refreshItems() {
-      log('Loading items from database...', 'info');
+      const batchRefId = document.getElementById('batchFilter').value;
       
-      const result = await ipcRenderer.invoke('get-all-items');
+      log(`Loading items from database${batchRefId ? ' (filtered by batch)' : ''}...`, 'info');
+      
+      let result;
+      if (batchRefId) {
+        result = await ipcRenderer.invoke('get-items-by-batch', batchRefId);
+      } else {
+        result = await ipcRenderer.invoke('get-all-items');
+      }
+      
       const itemsList = document.getElementById('itemsList');
       itemsList.innerHTML = '';
       
@@ -321,6 +402,16 @@
         result.items.forEach((item) => {
           const itemEl = document.createElement('div');
           itemEl.className = 'item-card' + (selectedItem?.uid === item.uid ? ' selected' : '');
+          
+          // Parse metadata to check for batch info
+          let batchBadge = '';
+          try {
+            const metadata = JSON.parse(item.metadata || '{}');
+            if (metadata.batch_ref_id) {
+              batchBadge = `<span class="batch-badge" title="${metadata.batch_ref_id}">📦 Batch</span>`;
+            }
+          } catch (e) {}
+          
           itemEl.innerHTML = `
             <div class="item-header">
               <strong>${item.uid.substring(0, 20)}...</strong>
@@ -331,6 +422,7 @@
               <small>Lot: ${item.lot_number}</small>
             </div>
             ${item.qr_image_url ? '<span class="qr-badge">QR ✓</span>' : '<span class="qr-badge missing">No QR</span>'}
+            ${batchBadge}
           `;
           itemEl.addEventListener('click', () => selectItem(item));
           itemsList.appendChild(itemEl);
@@ -746,6 +838,8 @@
     
     document.getElementById('refreshQueueBtn').addEventListener('click', refreshQueue);
     document.getElementById('refreshItemsBtn').addEventListener('click', refreshItems);
+    document.getElementById('refreshBatchesBtn').addEventListener('click', refreshBatches);
+    document.getElementById('batchFilter').addEventListener('change', onBatchFilterChange);
     
     document.getElementById('generateGcodeBtn').addEventListener('click', generateGcode);
     document.getElementById('previewGcodeBtn').addEventListener('click', previewGcode);
@@ -800,6 +894,7 @@
       log('Engraving Control App Ready', 'success');
       log('Work Area: 150mm × 150mm', 'info');
       refreshPorts();
+      refreshBatches();
       refreshItems();
       refreshQueue();
       showStep(1);

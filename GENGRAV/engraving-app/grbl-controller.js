@@ -451,6 +451,11 @@ class GRBLController {
    * Send command and wait for 'ok' response
    */
   async sendCommandAndWait(command, timeout = 10000) {
+    // Check if stop was requested before sending command
+    if (this.stopRequested) {
+      throw new Error('Engraving stopped by user');
+    }
+    
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error(`Command timeout: ${command}`));
@@ -693,19 +698,41 @@ class GRBLController {
     }
   }
 
-  stopEngraving() {
+  async stopEngraving() {
     try {
       this.stopRequested = true;
       
+      // Clear the command queue immediately
+      this.commandQueue = [];
+      this.isProcessing = false;
+      
+      // Clear all pending command resolvers
+      this.pendingCommands = [];
+      for (const [commandId, resolver] of this.commandResolvers.entries()) {
+        clearTimeout(resolver.timeoutId);
+        resolver.reject(new Error('Engraving stopped by user'));
+      }
+      this.commandResolvers.clear();
+      
+      // Send emergency stop to GRBL (Feed Hold)
+      if (this.isConnected && this.port) {
+        await this.sendCommand('!'); // Feed hold - pause immediately
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+        await this.sendCommand('M5'); // Turn off laser immediately
+        await this.sendCommand('\x18'); // Soft reset to clear GRBL buffer
+      }
+      
       // Stop current job
       if (this.currentJobId) {
-        this.reset();
         this.completeEngravingJob(this.currentJobId, false, 'Stopped by operator');
-        this.updateStatus('Engraving stopped');
-        this.isEngraving = false;
-        return { success: true };
+        this.currentJobId = null;
       }
-      return { success: false, error: 'No active engraving job' };
+      
+      this.updateStatus('Engraving stopped');
+      this.isEngraving = false;
+      console.log('Engraving stopped - queue cleared, laser off, GRBL reset');
+      
+      return { success: true };
     } catch (error) {
       console.error('Error stopping engraving:', error);
       return { success: false, error: error.message };

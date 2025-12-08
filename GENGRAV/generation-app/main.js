@@ -65,91 +65,137 @@ ipcMain.handle('create-item', async (event, itemData) => {
     const quantity = itemData.quantity || 1;
     const createdItems = [];
     const crypto = require('crypto');
+    const isBatchMode = itemData.batch_mode || false;
+    const batchRefId = itemData.batch_ref_id || null;
 
-    // Generate multiple items based on quantity
-    for (let i = 0; i < quantity; i++) {
-      // Generate unique hexadecimal code (8 characters)
-      const hexCode = crypto.randomBytes(4).toString('hex').toUpperCase();
-      
-      // Create unique UID with timestamp and hex code
-      const uniqueUid = `${itemData.uid}-${Date.now()}-${hexCode}`;
-      
-      // Generate QR code data
-      const qrData = JSON.stringify({
-        uid: uniqueUid,
-        component_type: itemData.component_type,
-        lot_number: itemData.lot_number,
-        vendor_id: itemData.vendor_id,
-        warranty_years: itemData.warranty_years,
-        manufacture_date: itemData.manufacture_date,
-        item_number: i + 1,
-        total_quantity: quantity,
-        hex_id: hexCode
-      });
-
-      // Generate QR code as base64 (stored directly in database)
-      const qrBase64 = await QRCode.toDataURL(qrData, {
-        width: 500,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
-
-      // Also save to file for backup/local viewing
-      const qrFilename = `${uniqueUid}.png`;
-      const qrFilePath = path.join(qrCodesDir, qrFilename);
-      await QRCode.toFile(qrFilePath, qrData, {
-        width: 500,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
-
-      // Create item data for this specific item
-      const singleItemData = {
-        uid: uniqueUid,
-        component_type: itemData.component_type,
-        lot_number: itemData.lot_number,
-        vendor_id: itemData.vendor_id,
-        quantity: 1, // Each item represents 1 unit
-        warranty_years: itemData.warranty_years,
-        manufacture_date: itemData.manufacture_date,
-        qr_image_url: qrBase64, // Store base64 directly
-        current_status: itemData.current_status || 'manufactured',
-        metadata: JSON.stringify({
-          original_quantity: quantity,
-          item_number: i + 1,
-          generated_at: new Date().toISOString(),
-          local_file: `qr-codes/${qrFilename}` // Keep reference to local file
-        })
-      };
-
-      // Save to database
-      const item = await dbClient.createItem(singleItemData);
-      
-      // Create engraving job
-      await dbClient.createEngravingJob({
-        item_uid: item.uid,
-        svg_url: item.qr_image_url
-      });
-
-      createdItems.push(item);
-
-      // Send progress update to renderer
-      if (mainWindow && i % 10 === 0) {
-        mainWindow.webContents.send('creation-progress', {
-          current: i + 1,
-          total: quantity,
-          percentage: Math.round(((i + 1) / quantity) * 100)
-        });
-      }
+    console.log(`Starting ${isBatchMode ? 'BATCH' : 'SINGLE'} generation: ${quantity} items`);
+    if (isBatchMode) {
+      console.log(`Batch Reference ID: ${batchRefId}`);
     }
 
-    return { success: true, items: createdItems, count: createdItems.length };
+    // For batch mode, use a more efficient progress update interval
+    const progressInterval = isBatchMode ? Math.max(100, Math.floor(quantity / 100)) : 10;
+    
+    // Process in batches for better performance
+    const batchSize = 100; // Process 100 items at a time
+    const numBatches = Math.ceil(quantity / batchSize);
+
+    for (let batchIdx = 0; batchIdx < numBatches; batchIdx++) {
+      const startIdx = batchIdx * batchSize;
+      const endIdx = Math.min(startIdx + batchSize, quantity);
+      const batchPromises = [];
+
+      // Generate multiple items in parallel within each batch
+      for (let i = startIdx; i < endIdx; i++) {
+        const itemPromise = (async () => {
+          // Generate unique hexadecimal code (8 characters)
+          const hexCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+          
+          // Create unique UID with timestamp and hex code
+          const uniqueUid = `${itemData.uid}-${Date.now()}-${hexCode}`;
+          
+          // Generate QR code data
+          const qrData = JSON.stringify({
+            uid: uniqueUid,
+            component_type: itemData.component_type,
+            lot_number: itemData.lot_number,
+            vendor_id: itemData.vendor_id,
+            warranty_years: itemData.warranty_years,
+            manufacture_date: itemData.manufacture_date,
+            item_number: i + 1,
+            total_quantity: quantity,
+            hex_id: hexCode,
+            batch_ref_id: batchRefId,
+            batch_mode: isBatchMode
+          });
+
+          // Generate QR code as base64 (stored directly in database)
+          const qrBase64 = await QRCode.toDataURL(qrData, {
+            width: 500,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          });
+
+          // Only save physical files for first 10 items (for backup/verification)
+          if (!isBatchMode || i < 10) {
+            const qrFilename = `${uniqueUid}.png`;
+            const qrFilePath = path.join(qrCodesDir, qrFilename);
+            await QRCode.toFile(qrFilePath, qrData, {
+              width: 500,
+              margin: 2,
+              color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+              }
+            });
+          }
+
+          // Create item data for this specific item
+          const singleItemData = {
+            uid: uniqueUid,
+            component_type: itemData.component_type,
+            lot_number: itemData.lot_number,
+            vendor_id: itemData.vendor_id,
+            quantity: 1, // Each item represents 1 unit
+            warranty_years: itemData.warranty_years,
+            manufacture_date: itemData.manufacture_date,
+            qr_image_url: qrBase64, // Store base64 directly
+            current_status: itemData.current_status || 'manufactured',
+            metadata: JSON.stringify({
+              original_quantity: quantity,
+              item_number: i + 1,
+              generated_at: new Date().toISOString(),
+              batch_ref_id: batchRefId,
+              batch_mode: isBatchMode
+            })
+          };
+
+          // Save to database
+          const item = await dbClient.createItem(singleItemData);
+          
+          // Create engraving job with batch reference
+          await dbClient.createEngravingJob({
+            item_uid: item.uid,
+            svg_url: item.qr_image_url,
+            batch_ref_id: batchRefId
+          });
+
+          return item;
+        })();
+
+        batchPromises.push(itemPromise);
+      }
+
+      // Wait for current batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      createdItems.push(...batchResults);
+
+      // Send progress update to renderer
+      if (mainWindow) {
+        mainWindow.webContents.send('creation-progress', {
+          current: endIdx,
+          total: quantity,
+          percentage: Math.round((endIdx / quantity) * 100)
+        });
+      }
+
+      console.log(`Batch ${batchIdx + 1}/${numBatches} complete: ${endIdx}/${quantity} items`);
+    }
+
+    // Send final progress update
+    if (mainWindow) {
+      mainWindow.webContents.send('creation-progress', {
+        current: quantity,
+        total: quantity,
+        percentage: 100
+      });
+    }
+
+    console.log(`Generation complete: ${createdItems.length} items created`);
+    return { success: true, items: createdItems, count: createdItems.length, batch_ref_id: batchRefId };
   } catch (error) {
     console.error('Error creating item:', error);
     return { success: false, error: error.message };

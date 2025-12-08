@@ -345,6 +345,55 @@ class DatabaseClient {
     const result = await this.query(query);
     return result.rows[0];
   }
+
+  // Get all unique batch reference IDs
+  async getAllBatches() {
+    const query = `
+      SELECT 
+        metadata->>'batch_ref_id' as batch_ref_id,
+        component_type,
+        lot_number,
+        COUNT(*) as qr_count,
+        MIN(created_at) as created_at,
+        SUM(CASE WHEN current_status = 'engraved' THEN 1 ELSE 0 END) as engraved_count
+      FROM items
+      WHERE metadata->>'batch_ref_id' IS NOT NULL
+      GROUP BY metadata->>'batch_ref_id', component_type, lot_number
+      ORDER BY MIN(created_at) DESC
+    `;
+    const result = await this.query(query);
+    return result.rows;
+  }
+
+  // Get items by batch reference ID
+  async getItemsByBatchRefId(batchRefId) {
+    const query = `
+      SELECT * FROM items
+      WHERE metadata->>'batch_ref_id' = $1
+      ORDER BY created_at ASC
+    `;
+    const result = await this.query(query, [batchRefId]);
+    return result.rows;
+  }
+
+  // Get batch statistics
+  async getBatchStats(batchRefId) {
+    const query = `
+      SELECT 
+        COUNT(*) as total_count,
+        COUNT(*) FILTER (WHERE current_status = 'manufactured') as manufactured_count,
+        COUNT(*) FILTER (WHERE current_status = 'engraved') as engraved_count,
+        COUNT(*) FILTER (WHERE current_status = 'installed') as installed_count,
+        component_type,
+        lot_number,
+        MIN(created_at) as batch_created_at
+      FROM items
+      WHERE metadata->>'batch_ref_id' = $1
+      GROUP BY component_type, lot_number
+    `;
+    const result = await this.query(query, [batchRefId]);
+    return result.rows[0];
+  }
 }
 
 module.exports = DatabaseClient;

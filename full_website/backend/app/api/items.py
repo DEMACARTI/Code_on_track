@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from app.db.session import get_db
@@ -50,7 +50,7 @@ async def create_item(
     return item
 
 
-@router.get("/", response_model=List[ItemOut])
+@router.get("/")
 async def list_items(
     q: Optional[str] = None,
     status: Optional[str] = None,
@@ -63,26 +63,42 @@ async def list_items(
 ):
     """
     List items with filters from Supabase database.
+    Returns paginated response with total count.
     """
-    query = select(Item)
+    # Build base query
+    base_query = select(Item)
 
     if q:
-        query = query.where(Item.uid.ilike(f"%{q}%"))
+        base_query = base_query.where(Item.uid.ilike(f"%{q}%"))
     if status:
-        query = query.where(Item.current_status == status)
+        base_query = base_query.where(Item.current_status == status)
     if component_type:
-        query = query.where(Item.component_type == component_type)
+        base_query = base_query.where(Item.component_type == component_type)
     if vendor_id:
-        query = query.where(Item.vendor_id == vendor_id)
+        base_query = base_query.where(Item.vendor_id == vendor_id)
 
-    # Order by created_at desc
-    query = query.order_by(Item.created_at.desc())
+    # Get total count
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    # Order by created_at desc and paginate
+    items_query = base_query.order_by(Item.created_at.desc())
+    items_query = items_query.offset((page - 1) * page_size).limit(page_size)
     
-    # Pagination
-    query = query.offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(items_query)
+    items = result.scalars().all()
     
-    result = await db.execute(query)
-    return result.scalars().all()
+    # Calculate total pages
+    total_pages = (total + page_size - 1) // page_size
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
 
 
 @router.get("/stats")
@@ -231,3 +247,59 @@ async def delete_item(
     await db.delete(item)
     await db.commit()
     return {"message": "Item deleted successfully"}
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_items(
+    uids: list[str],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN]))
+):
+    """
+    Delete multiple items by their UIDs. Requires ADMIN role.
+    """
+    if not uids:
+        raise HTTPException(status_code=400, detail="No UIDs provided")
+    
+    result = await db.execute(select(Item).where(Item.uid.in_(uids)))
+    items = result.scalars().all()
+    
+    deleted_count = len(items)
+    
+    for item in items:
+        await db.delete(item)
+    
+    await db.commit()
+    return {
+        "message": f"Successfully deleted {deleted_count} item(s)",
+        "deleted_count": deleted_count,
+        "requested_count": len(uids)
+    }
+
+
+@router.delete("/all")
+async def delete_all_items(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    confirm: str = None
+):
+    """
+    Delete ALL items in the database. Requires ADMIN role and confirmation.
+    WARNING: This action cannot be undone!
+    """
+    if confirm != "DELETE_ALL_ITEMS":
+        raise HTTPException(
+            status_code=400, 
+            detail="Must provide confirmation string 'DELETE_ALL_ITEMS' to proceed"
+        )
+    
+    result = await db.execute(select(func.count(Item.id)))
+    total_count = result.scalar()
+    
+    await db.execute(delete(Item))
+    await db.commit()
+    
+    return {
+        "message": f"Successfully deleted all {total_count} item(s)",
+        "deleted_count": total_count
+    }

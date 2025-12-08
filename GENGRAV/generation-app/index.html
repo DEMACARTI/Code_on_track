@@ -319,6 +319,71 @@
       color: #999;
     }
 
+    .batch-info {
+      background: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .batch-info.visible {
+      display: block;
+    }
+
+    .batch-info h4 {
+      color: #2e7d32;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    .batch-info p {
+      color: #555;
+      font-size: 0.85rem;
+      margin: 4px 0;
+    }
+
+    .progress-container {
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .progress-container.visible {
+      display: block;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 15px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .progress-text {
+      text-align: center;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
     @media (max-width: 1024px) {
       .main-content {
         grid-template-columns: 1fr;
@@ -341,13 +406,32 @@
         <div class="card-body">
           <form id="qrForm">
             <div class="form-group">
+              <label>Generation Mode <span class="required">*</span></label>
+              <select id="generationMode" required onchange="toggleGenerationMode()">
+                <option value="single">Single Generation (1-1000 QRs)</option>
+                <option value="batch">Batch Generation (50K-10L QRs)</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="batchSizeGroup" style="display: none;">
+              <label>Batch Size <span class="required">*</span></label>
+              <select id="batchSize">
+                <option value="50000">50,000 QR Codes</option>
+                <option value="100000">1,00,000 QR Codes</option>
+                <option value="500000">5,00,000 QR Codes</option>
+                <option value="1000000">10,00,000 QR Codes</option>
+              </select>
+              <span class="hint">Batch Reference ID will be auto-generated</span>
+            </div>
+
+            <div class="form-group">
               <label>Component Type <span class="required">*</span></label>
               <select id="componentType" required>
                 <option value="">Select Component Type</option>
-                <option value="EC">EC - Electronic Component</option>
-                <option value="SLP">SLP - Sleeve Part</option>
-                <option value="RP">RP - Replacement Part</option>
-                <option value="LIN">LIN - Linear Component</option>
+                <option value="ERC">ERC - Elastic Rail Clip</option>
+                <option value="LINER">LINER - Rail Liner</option>
+                <option value="PAD">PAD - Rail Pad</option>
+                <option value="SLEEPER">SLEEPER - Railway Sleeper</option>
               </select>
             </div>
 
@@ -380,7 +464,7 @@
             </div>
 
             <div class="form-row">
-              <div class="form-group">
+              <div class="form-group" id="quantityGroup">
                 <label>Quantity <span class="required">*</span></label>
                 <input type="number" id="quantity" value="1" min="1" max="1000" required>
                 <span class="hint">1 - 1000 items</span>
@@ -391,6 +475,20 @@
                 <input type="date" id="manufactureDate" required>
                 <span class="hint">Cannot be in future</span>
               </div>
+            </div>
+
+            <div class="batch-info" id="batchInfo">
+              <h4>📦 Batch Generation Active</h4>
+              <p><strong>Batch Reference ID:</strong> <span id="batchRefId">-</span></p>
+              <p><strong>Total QR Codes:</strong> <span id="batchTotal">-</span></p>
+              <p>This batch will be saved with a unique reference ID for easy engraving selection.</p>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+              </div>
+              <div class="progress-text" id="progressText">Generating QR codes...</div>
             </div>
 
             <div class="form-actions">
@@ -433,9 +531,59 @@
 
     let generatedQRs = [];
 
+    function toggleGenerationMode() {
+      const mode = document.getElementById('generationMode').value;
+      const batchSizeGroup = document.getElementById('batchSizeGroup');
+      const quantityGroup = document.getElementById('quantityGroup');
+      const batchInfo = document.getElementById('batchInfo');
+      const btnText = document.getElementById('btnText');
+
+      if (mode === 'batch') {
+        batchSizeGroup.style.display = 'block';
+        quantityGroup.style.display = 'none';
+        document.getElementById('quantity').required = false;
+        document.getElementById('batchSize').required = true;
+        
+        const batchSize = parseInt(document.getElementById('batchSize').value);
+        const batchRefId = generateBatchRefId();
+        document.getElementById('batchRefId').textContent = batchRefId;
+        document.getElementById('batchTotal').textContent = batchSize.toLocaleString();
+        batchInfo.classList.add('visible');
+        
+        btnText.textContent = `Generate Batch (${(batchSize/1000).toFixed(0)}K QR Codes)`;
+      } else {
+        batchSizeGroup.style.display = 'none';
+        quantityGroup.style.display = 'block';
+        document.getElementById('quantity').required = true;
+        document.getElementById('batchSize').required = false;
+        batchInfo.classList.remove('visible');
+        
+        const qty = document.getElementById('quantity').value || 1;
+        btnText.textContent = `Generate ${qty} QR Code${qty > 1 ? 's' : ''}`;
+      }
+    }
+
+    function generateBatchRefId() {
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      return `BATCH-${timestamp}-${random}`;
+    }
+
+    document.getElementById('batchSize').addEventListener('change', () => {
+      if (document.getElementById('generationMode').value === 'batch') {
+        const batchSize = parseInt(document.getElementById('batchSize').value);
+        const batchRefId = generateBatchRefId();
+        document.getElementById('batchRefId').textContent = batchRefId;
+        document.getElementById('batchTotal').textContent = batchSize.toLocaleString();
+        document.getElementById('btnText').textContent = `Generate Batch (${(batchSize/1000).toFixed(0)}K QR Codes)`;
+      }
+    });
+
     document.getElementById('quantity').addEventListener('input', (e) => {
       const qty = e.target.value || 1;
-      document.getElementById('btnText').textContent = `Generate ${qty} QR Code${qty > 1 ? 's' : ''}`;
+      if (document.getElementById('generationMode').value === 'single') {
+        document.getElementById('btnText').textContent = `Generate ${qty} QR Code${qty > 1 ? 's' : ''}`;
+      }
     });
 
     function resetForm() {
@@ -541,17 +689,36 @@
       win.document.close();
     }
 
+    // Listen for progress updates
+    window.electronAPI.onCreationProgress((data) => {
+      const progressContainer = document.getElementById('progressContainer');
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+      
+      progressContainer.classList.add('visible');
+      progressFill.style.width = `${data.percentage}%`;
+      progressFill.textContent = `${data.percentage}%`;
+      progressText.textContent = `Generated ${data.current.toLocaleString()} of ${data.total.toLocaleString()} QR codes...`;
+    });
+
     document.getElementById('qrForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const btn = document.getElementById('generateBtn');
       const btnText = document.getElementById('btnText');
       const originalText = btnText.textContent;
+      const mode = document.getElementById('generationMode').value;
 
       btn.disabled = true;
       btnText.textContent = 'Generating...';
 
       try {
+        const quantity = mode === 'batch' 
+          ? parseInt(document.getElementById('batchSize').value)
+          : parseInt(document.getElementById('quantity').value);
+
+        const batchRefId = mode === 'batch' ? document.getElementById('batchRefId').textContent : null;
+
         const formData = {
           uid: `${document.getElementById('componentType').value}-${document.getElementById('lotNumber').value}`,
           component_type: document.getElementById('componentType').value,
@@ -559,17 +726,30 @@
           vendor_id: parseInt(document.getElementById('vendorId').value),
           warranty_years: parseInt(document.getElementById('warrantyYears').value),
           manufacture_date: document.getElementById('manufactureDate').value,
-          quantity: parseInt(document.getElementById('quantity').value),
-          current_status: 'manufactured'
+          quantity: quantity,
+          current_status: 'manufactured',
+          batch_mode: mode === 'batch',
+          batch_ref_id: batchRefId
         };
 
         const result = await window.electronAPI.createItem(formData);
         
-        if (result.success && result.items) {
-          for (const item of result.items) {
+        if (result.success) {
+          // Only display first few items in UI for batch mode
+          const itemsToDisplay = mode === 'batch' ? result.items.slice(0, 5) : result.items;
+          for (const item of itemsToDisplay) {
             await displayQR(item);
           }
-          alert(`✅ Successfully generated ${result.count} QR code${result.count > 1 ? 's' : ''}!`);
+          
+          if (mode === 'batch') {
+            alert(`✅ Successfully generated batch: ${result.count.toLocaleString()} QR codes!\n\nBatch Reference ID: ${batchRefId}\n\nFirst 5 items shown in preview. All QR codes saved to database.`);
+          } else {
+            alert(`✅ Successfully generated ${result.count} QR code${result.count > 1 ? 's' : ''}!`);
+          }
+          
+          // Reset progress bar
+          document.getElementById('progressContainer').classList.remove('visible');
+          document.getElementById('progressFill').style.width = '0%';
         } else {
           alert(`❌ Error: ${result.error || 'Failed to generate QR codes'}`);
         }
