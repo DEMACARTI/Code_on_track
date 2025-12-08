@@ -223,8 +223,14 @@ export default function Items() {
                                     <TableLoading colSpan={11} />
                                 ) : error ? (
                                     <TableRow>
-                                        <td colSpan={11} className="h-24 text-center text-red-500">
-                                            Error loading items
+                                        <td colSpan={11} className="h-24 text-center">
+                                            <div className="text-red-500 mb-2">Error loading items</div>
+                                            <div className="text-sm text-gray-600">
+                                                {error instanceof Error ? error.message : 'Unknown error'}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-2">
+                                                Make sure you're logged in and the backend is running on port 8001
+                                            </div>
                                         </td>
                                     </TableRow>
                                 ) : items.length > 0 ? (
