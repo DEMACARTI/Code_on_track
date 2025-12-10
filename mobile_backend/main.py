@@ -93,6 +93,8 @@ class DefectClassificationResponse(BaseModel):
     confidence: float
     all_probabilities: Dict[str, float]
     remark: str  # Human-readable remark
+    status: Optional[str] = "OK"
+    model_available: Optional[bool] = True
 
 # Database Model for Inspections
 class Inspection(Base):
@@ -223,10 +225,15 @@ def predict_defect(image: Image.Image) -> dict:
     if _vgg_model is None:
         # Try to load model if not already loaded
         if not load_vgg_model():
-            raise HTTPException(
-                status_code=503,
-                detail="VGG model not available. Please train the model first."
-            )
+            # Return a fallback response instead of error
+            return {
+                "predicted_class": "Normal",
+                "confidence": 0.0,
+                "status": "Manual inspection required",
+                "remark": "⚠️ AI model unavailable. Please inspect manually.",
+                "all_probabilities": {name: 0.0 for name in _class_names},
+                "model_available": False
+            }
     
     try:
         # Preprocess image
@@ -253,7 +260,9 @@ def predict_defect(image: Image.Image) -> dict:
             'predicted_class': predicted_class,
             'confidence': confidence,
             'all_probabilities': all_probs,
-            'remark': remark
+            'remark': remark,
+            'status': 'OK',
+            'model_available': True
         }
         
     except Exception as e:
