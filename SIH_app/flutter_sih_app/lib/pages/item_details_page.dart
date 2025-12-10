@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../services/qr_scan_service.dart';
+import '../services/defect_classification_service.dart';
 import '../theme/app_theme.dart';
 
 /// Full-screen page to display scanned QR code item details
@@ -21,6 +24,10 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
   final TextEditingController _remarkController = TextEditingController();
   String _selectedStatus = 'operational';
   bool _isSubmitting = false;
+  final ImagePicker _picker = ImagePicker();
+  File? _capturedImage;
+  DefectClassificationResult? _aiClassification;
+  bool _isClassifying = false;
 
   // All valid status values
   static const List<String> _validStatuses = [
@@ -45,6 +52,122 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
   void dispose() {
     _remarkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _captureAndClassify() async {
+    try {
+      // Capture image from camera
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (photo == null) return;
+
+      setState(() {
+        _capturedImage = File(photo.path);
+        _isClassifying = true;
+        _aiClassification = null;
+      });
+
+      // Show classification dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Analyzing defect...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Call AI classification service
+      final classificationService = DefectClassificationService(
+        baseUrl: widget.qrService.baseUrl,
+      );
+
+      final result = await classificationService.classifyDefectFromFile(_capturedImage!);
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      if (result != null) {
+        setState(() {
+          _aiClassification = result;
+          _remarkController.text = result.remark;
+          _isClassifying = false;
+        });
+
+        // Update status based on AI classification
+        _updateStatusFromAI(result.predictedClass);
+
+        // Show success snackbar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${result.icon} Detected: ${result.predictedClass} (${result.confidencePercent})',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } else {
+        setState(() => _isClassifying = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Classification failed. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isClassifying = false);
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog if open
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _updateStatusFromAI(String predictedClass) {
+    // Auto-update status based on AI classification
+    switch (predictedClass.toLowerCase()) {
+      case 'broken':
+        setState(() => _selectedStatus = 'rejected');
+        break;
+      case 'crack':
+      case 'damaged':
+        setState(() => _selectedStatus = 'damaged');
+        break;
+      case 'rust':
+        setState(() => _selectedStatus = 'needs_maintenance');
+        break;
+      case 'normal':
+        setState(() => _selectedStatus = 'operational');
+        break;
+    }
   }
 
   Future<void> _submitInspection() async {
@@ -331,16 +454,120 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
                       
                       const SizedBox(height: 16),
                       
-                      const Text(
-                        'Inspection Remarks',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Inspection Remarks',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: _isClassifying ? null : _captureAndClassify,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade700,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: _isClassifying
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.camera_alt, size: 20),
+                            label: Text(_isClassifying ? 'Analyzing...' : 'AI Scan'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
+                      
+                      // Show AI classification result if available
+                      if (_aiClassification != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    _aiClassification!.icon,
+                                    style: const TextStyle(fontSize: 24),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'AI Detected: ${_aiClassification!.predictedClass}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      _aiClassification!.confidencePercent,
+                                      style: TextStyle(
+                                        color: Colors.green.shade800,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Severity: ${_aiClassification!.severityLevel}',
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      
+                      // Show captured image thumbnail if available
+                      if (_capturedImage != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            _capturedImage!,
+                            height: 150,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      
                       TextField(
                         controller: _remarkController,
                         maxLines: 4,
                         decoration: InputDecoration(
-                          hintText: 'Enter inspection notes or remarks...',
+                          hintText: 'Enter inspection notes or click AI Scan to auto-detect...',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),

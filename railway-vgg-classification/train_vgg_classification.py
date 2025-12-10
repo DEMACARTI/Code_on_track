@@ -156,7 +156,46 @@ def build_vgg_model(num_classes, model_type='VGG16'):
 # TRAINING
 # ============================================================================
 
-def train_model(model, train_gen, val_gen, phase='initial'):
+def calculate_class_weights(train_gen):
+    """Calculate class weights to handle imbalanced dataset"""
+    from sklearn.utils.class_weight import compute_class_weight
+    
+    print("\n" + "=" * 80)
+    print("⚖️  Calculating Class Weights for Imbalanced Dataset")
+    print("=" * 80)
+    
+    # Count samples per class
+    class_counts = {}
+    for class_name, class_idx in train_gen.class_indices.items():
+        class_dir = TRAIN_DIR / class_name
+        count = len(list(class_dir.glob('*.jpg')))
+        class_counts[class_name] = count
+    
+    print("\nClass distribution:")
+    total_samples = sum(class_counts.values())
+    for class_name, count in sorted(class_counts.items(), key=lambda x: x[1], reverse=True):
+        percentage = (count / total_samples) * 100
+        print(f"  {class_name:10s}: {count:5d} ({percentage:5.2f}%)")
+    
+    # Calculate class weights
+    class_labels = [train_gen.class_indices[name] for name in class_counts.keys()]
+    class_counts_list = [class_counts[name] for name in class_counts.keys()]
+    
+    weights = compute_class_weight(
+        class_weight='balanced',
+        classes=np.array(class_labels),
+        y=np.repeat(class_labels, class_counts_list)
+    )
+    
+    class_weight_dict = {i: w for i, w in enumerate(weights)}
+    
+    print("\nCalculated class weights:")
+    for class_name, class_idx in sorted(train_gen.class_indices.items(), key=lambda x: x[1]):
+        print(f"  {class_name:10s}: {class_weight_dict[class_idx]:.4f}")
+    
+    return class_weight_dict
+
+def train_model(model, train_gen, val_gen, class_weights=None, phase='initial'):
     """Train the model"""
     
     print("\n" + "=" * 80)
@@ -196,18 +235,22 @@ def train_model(model, train_gen, val_gen, phase='initial'):
     
     callbacks = [checkpoint, early_stop, reduce_lr]
     
-    # Train
+    # Train with class weights
+    if class_weights:
+        print("\n⚖️  Training with class weights to handle imbalance")
+    
     history = model.fit(
         train_gen,
         validation_data=val_gen,
         epochs=EPOCHS,
         callbacks=callbacks,
+        class_weight=class_weights,
         verbose=1
     )
     
     return history
 
-def fine_tune_model(model, base_model, train_gen, val_gen):
+def fine_tune_model(model, base_model, train_gen, val_gen, class_weights=None):
     """Fine-tune the model by unfreezing top layers"""
     
     print("\n" + "=" * 80)
@@ -231,8 +274,8 @@ def fine_tune_model(model, base_model, train_gen, val_gen):
         metrics=['accuracy', keras.metrics.Precision(), keras.metrics.Recall()]
     )
     
-    # Train again
-    history = train_model(model, train_gen, val_gen, phase='fine_tuned')
+    # Train again with class weights
+    history = train_model(model, train_gen, val_gen, class_weights=class_weights, phase='fine_tuned')
     
     return history
 
@@ -374,6 +417,9 @@ def main():
     # Build model
     model, base_model = build_vgg_model(num_classes, MODEL_TYPE)
     
+    # Calculate class weights for imbalanced dataset
+    class_weights = calculate_class_weights(train_gen)
+    
     # Print model summary
     print("\n" + "=" * 80)
     print("Model Summary")
@@ -384,14 +430,14 @@ def main():
     print("\n" + "=" * 80)
     print("Phase 1: Training with frozen base layers")
     print("=" * 80)
-    history1 = train_model(model, train_gen, val_gen, phase='initial')
+    history1 = train_model(model, train_gen, val_gen, class_weights=class_weights, phase='initial')
     plot_training_history(history1, phase='initial')
     
     # Phase 2: Fine-tune
     print("\n" + "=" * 80)
     print("Phase 2: Fine-tuning top layers")
     print("=" * 80)
-    history2 = fine_tune_model(model, base_model, train_gen, val_gen)
+    history2 = fine_tune_model(model, base_model, train_gen, val_gen, class_weights=class_weights)
     plot_training_history(history2, phase='fine_tuned')
     
     # Final evaluation

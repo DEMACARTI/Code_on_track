@@ -63,25 +63,33 @@ export default function Items() {
     // Delete mutations
     const deleteMutation = useMutation({
         mutationFn: async (uids: string[]) => {
-            await api.post('/items/bulk-delete', uids);
+            const response = await api.post('/items/bulk-delete', uids);
+            return response.data;
         },
-        onSuccess: (_, uids) => {
+        onSuccess: (data, uids) => {
             queryClient.invalidateQueries({ queryKey: ['items'] });
             setSelectedItems(new Set());
             setShowDeleteConfirm(false);
+            
+            let message = data.message || `Successfully deleted ${data.deleted_count || uids.length} item${uids.length > 1 ? 's' : ''}`;
+            if (data.warning) {
+                message += ` (${data.warning})`;
+            }
+            
             setNotification({
                 type: 'success',
-                message: `Successfully deleted ${uids.length} item${uids.length > 1 ? 's' : ''}`
+                message
             });
             setTimeout(() => setNotification(null), 5000);
         },
         onError: (error: any) => {
             setShowDeleteConfirm(false);
+            const errorDetail = error.response?.data?.detail || 'Failed to delete items';
             setNotification({
                 type: 'error',
-                message: error.response?.data?.detail || 'Failed to delete items'
+                message: errorDetail
             });
-            setTimeout(() => setNotification(null), 5000);
+            setTimeout(() => setNotification(null), 8000);
         }
     });
 

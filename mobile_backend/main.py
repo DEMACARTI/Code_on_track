@@ -106,8 +106,9 @@ class Inspection(Base):
     remark = Column(Text)
     inspector_id = Column(Integer)
     photo_url = Column(Text)
-    ai_classification = Column(String(50))  # AI predicted defect class
-    ai_confidence = Column(Float)  # AI confidence score
+    # AI fields are commented out until migration is run
+    # ai_classification = Column(String(50))  # AI predicted defect class
+    # ai_confidence = Column(Float)  # AI confidence score
     inspected_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -437,14 +438,16 @@ def submit_inspection(request: InspectionRequest):
         if not item:
             raise HTTPException(status_code=404, detail="Item not found")
         
-        # Create inspection record
-        inspection = Inspection(
-            item_uid=request.qr_id,
-            status=request.status,
-            remark=request.remark,
-            inspector_id=request.inspector_id,
-            inspected_at=datetime.utcnow()
-        )
+        # Create inspection record without AI fields (optional)
+        inspection_data = {
+            'item_uid': request.qr_id,
+            'status': request.status,
+            'remark': request.remark,
+            'inspector_id': request.inspector_id,
+            'inspected_at': datetime.utcnow()
+        }
+        
+        inspection = Inspection(**inspection_data)
         db.add(inspection)
         
         # Update item status based on inspection

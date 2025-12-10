@@ -229,6 +229,47 @@ async def update_item(
     return item
 
 
+@router.delete("/all")
+async def delete_all_items(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role([UserRole.ADMIN])),
+    confirm: str = None
+):
+    """
+    Delete ALL items in the database. Requires ADMIN role and confirmation.
+    Force deletes items by clearing foreign key references (CASCADE style).
+    WARNING: This action cannot be undone!
+    """
+    if confirm != "DELETE_ALL_ITEMS":
+        raise HTTPException(
+            status_code=400, 
+            detail="Must provide confirmation string 'DELETE_ALL_ITEMS' to proceed"
+        )
+    
+    # Count items before deletion
+    result = await db.execute(select(func.count(Item.id)))
+    total_count = result.scalar()
+    
+    try:
+        # Try to delete items first (if CASCADE is set in DB)
+        await db.execute(delete(Item))
+        await db.commit()
+    except Exception as e:
+        # If FK constraint fails, rollback and clear references manually
+        await db.rollback()
+        # NULL out foreign keys in related tables to break the relationship
+        await db.execute(EngravingJob.__table__.update().values(item_uid=None))
+        await db.execute(Inspection.__table__.update().values(item_uid=None))
+        # Now delete all items
+        await db.execute(delete(Item))
+        await db.commit()
+    
+    return {
+        "message": f"Successfully deleted all {total_count} item(s) (CASCADE)",
+        "deleted_count": total_count
+    }
+
+
 @router.delete("/{uid}")
 async def delete_item(
     uid: str,
@@ -237,6 +278,7 @@ async def delete_item(
 ):
     """
     Delete an item. Requires ADMIN role.
+    Force deletes by removing foreign key references (CASCADE style).
     """
     result = await db.execute(select(Item).where(Item.uid == uid))
     item = result.scalar_one_or_none()
@@ -244,9 +286,21 @@ async def delete_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    await db.delete(item)
-    await db.commit()
-    return {"message": "Item deleted successfully"}
+    try:
+        # Try direct delete first (if CASCADE is set in DB)
+        await db.delete(item)
+        await db.commit()
+    except Exception as e:
+        # If FK constraint fails, rollback and clear references manually
+        await db.rollback()
+        # NULL out foreign keys in related tables
+        await db.execute(EngravingJob.__table__.update().where(EngravingJob.item_uid == uid).values(item_uid=None))
+        await db.execute(Inspection.__table__.update().where(Inspection.item_uid == uid).values(item_uid=None))
+        # Now delete the item
+        await db.delete(item)
+        await db.commit()
+    
+    return {"message": "Item deleted successfully (CASCADE)"}
 
 
 @router.post("/bulk-delete")
@@ -257,6 +311,7 @@ async def bulk_delete_items(
 ):
     """
     Delete multiple items by their UIDs. Requires ADMIN role.
+    Force deletes by removing foreign key references (CASCADE style).
     """
     if not uids:
         raise HTTPException(status_code=400, detail="No UIDs provided")
@@ -264,42 +319,41 @@ async def bulk_delete_items(
     result = await db.execute(select(Item).where(Item.uid.in_(uids)))
     items = result.scalars().all()
     
+    found_uids = {item.uid for item in items}
+    not_found_uids = [uid for uid in uids if uid not in found_uids]
+    
     deleted_count = len(items)
     
-    for item in items:
-        await db.delete(item)
+    if deleted_count == 0:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"None of the {len(uids)} item(s) were found in the database. UIDs: {', '.join(uids[:3])}..."
+        )
     
-    await db.commit()
-    return {
-        "message": f"Successfully deleted {deleted_count} item(s)",
+    try:
+        # Try direct delete first (if CASCADE is set in DB)
+        for item in items:
+            await db.delete(item)
+        await db.commit()
+    except Exception as e:
+        # If FK constraint fails, rollback and clear references manually
+        await db.rollback()
+        # NULL out foreign keys in related tables to break the relationship
+        await db.execute(EngravingJob.__table__.update().where(EngravingJob.item_uid.in_(uids)).values(item_uid=None))
+        await db.execute(Inspection.__table__.update().where(Inspection.item_uid.in_(uids)).values(item_uid=None))
+        # Now delete the items
+        for item in items:
+            await db.delete(item)
+        await db.commit()
+    
+    response = {
+        "message": f"Successfully deleted {deleted_count} item(s) (CASCADE)",
         "deleted_count": deleted_count,
         "requested_count": len(uids)
     }
-
-
-@router.delete("/all")
-async def delete_all_items(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role([UserRole.ADMIN])),
-    confirm: str = None
-):
-    """
-    Delete ALL items in the database. Requires ADMIN role and confirmation.
-    WARNING: This action cannot be undone!
-    """
-    if confirm != "DELETE_ALL_ITEMS":
-        raise HTTPException(
-            status_code=400, 
-            detail="Must provide confirmation string 'DELETE_ALL_ITEMS' to proceed"
-        )
     
-    result = await db.execute(select(func.count(Item.id)))
-    total_count = result.scalar()
+    if not_found_uids:
+        response["warning"] = f"{len(not_found_uids)} item(s) not found"
+        response["not_found_uids"] = not_found_uids[:5]  # Limit to first 5
     
-    await db.execute(delete(Item))
-    await db.commit()
-    
-    return {
-        "message": f"Successfully deleted all {total_count} item(s)",
-        "deleted_count": total_count
-    }
+    return response

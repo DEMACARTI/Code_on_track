@@ -144,6 +144,7 @@ class RestQRScanService implements QRScanService {
               'qr_id': qrId,
               'status': status,
               'remark': remark,
+              'inspector_id': 1, // Default inspector ID as integer
             }),
           )
           .timeout(const Duration(seconds: 10));
