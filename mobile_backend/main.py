@@ -265,6 +265,18 @@ def predict_defect(image: Image.Image) -> dict:
             for class_name, prob in zip(_class_names, predictions[0])
         }
         
+        # CONFIDENCE THRESHOLD: If confidence is below 50%, consider it Normal
+        # This helps prevent false positives from an undertrained model
+        CONFIDENCE_THRESHOLD = 0.50
+        normal_prob = all_probs.get('Normal', 0.0)
+        
+        # If top prediction confidence is low, or Normal has decent probability, classify as Normal
+        if confidence < CONFIDENCE_THRESHOLD or (predicted_class != 'Normal' and normal_prob > 0.25):
+            # Check if Normal class has reasonable probability
+            if normal_prob >= confidence * 0.5:  # Normal is at least half as likely
+                predicted_class = 'Normal'
+                confidence = normal_prob
+        
         # Generate remark
         remark = DEFECT_REMARKS.get(predicted_class, "Analysis complete.")
         
