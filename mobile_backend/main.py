@@ -1,18 +1,23 @@
 """
 Mobile Scanning Backend - Simple FastAPI server for RailChinh Flutter App
+With VGG Defect Classification Integration
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict
 import hashlib
 from datetime import datetime
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Enum, Text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Enum, Text, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import enum
+import io
+from PIL import Image
+import numpy as np
+import base64
 
 # Database setup
 DATABASE_URL = os.getenv(
@@ -80,6 +85,15 @@ class InspectionRequest(BaseModel):
     remark: str
     inspector_id: Optional[int] = None
 
+class DefectClassificationRequest(BaseModel):
+    image_base64: str  # Base64 encoded image
+
+class DefectClassificationResponse(BaseModel):
+    predicted_class: str
+    confidence: float
+    all_probabilities: Dict[str, float]
+    remark: str  # Human-readable remark
+
 # Database Model for Inspections
 class Inspection(Base):
     __tablename__ = "inspections"
@@ -90,6 +104,8 @@ class Inspection(Base):
     remark = Column(Text)
     inspector_id = Column(Integer)
     photo_url = Column(Text)
+    ai_classification = Column(String(50))  # AI predicted defect class
+    ai_confidence = Column(Float)  # AI confidence score
     inspected_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -129,6 +145,119 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# ============================================================================
+# VGG MODEL LOADING AND PREDICTION
+# ============================================================================
+
+# Global variable to store loaded model
+_vgg_model = None
+_class_names = ['Broken', 'Crack', 'Damaged', 'Normal', 'Rust']
+
+# Remark templates for each defect class
+DEFECT_REMARKS = {
+    'Rust': 'Component shows signs of rust/corrosion. Metal surface oxidation detected.',
+    'Crack': 'Crack detected in component. Structural integrity compromised.',
+    'Broken': 'Component is broken or severely damaged. Immediate replacement required.',
+    'Damaged': 'General damage/wear detected. Component shows signs of deterioration.',
+    'Normal': 'Component appears to be in good condition. No visible defects detected.'
+}
+
+def load_vgg_model():
+    """Load VGG model on startup"""
+    global _vgg_model
+    
+    try:
+        import tensorflow as tf
+        from pathlib import Path
+        
+        # Path to the trained model - try local directory first
+        model_path = Path(__file__).parent / 'best_model.keras'
+        
+        if not model_path.exists():
+            # Try railway-vgg-classification output directory
+            model_path = Path(__file__).parent.parent / 'railway-vgg-classification' / 'railway_defect_output' / 'best_model_fine_tuned.keras'
+        
+        if not model_path.exists():
+            # Try alternative absolute path
+            model_path = Path('/Users/dakshrathore/Desktop/Code_on_track/railway-vgg-classification/railway_defect_output/best_model_fine_tuned.keras')
+        
+        if model_path.exists():
+            print(f"Loading VGG model from: {model_path}")
+            _vgg_model = tf.keras.models.load_model(str(model_path))
+            print("✅ VGG model loaded successfully!")
+            return True
+        else:
+            print(f"⚠️  Model not found at: {model_path}")
+            print("Model will need to be trained first. Run: python train_vgg_classification.py")
+            return False
+            
+    except ImportError:
+        print("⚠️  TensorFlow not installed. Install with: pip install tensorflow")
+        return False
+    except Exception as e:
+        print(f"⚠️  Error loading model: {e}")
+        return False
+
+def preprocess_image_for_vgg(image: Image.Image) -> np.ndarray:
+    """Preprocess image for VGG model prediction"""
+    # Resize to VGG input size
+    image = image.resize((224, 224))
+    
+    # Convert to RGB if necessary
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    # Convert to array and normalize
+    img_array = np.array(image) / 255.0
+    
+    # Add batch dimension
+    img_array = np.expand_dims(img_array, axis=0)
+    
+    return img_array
+
+def predict_defect(image: Image.Image) -> dict:
+    """Predict defect class using VGG model"""
+    global _vgg_model, _class_names
+    
+    if _vgg_model is None:
+        # Try to load model if not already loaded
+        if not load_vgg_model():
+            raise HTTPException(
+                status_code=503,
+                detail="VGG model not available. Please train the model first."
+            )
+    
+    try:
+        # Preprocess image
+        img_array = preprocess_image_for_vgg(image)
+        
+        # Make prediction
+        predictions = _vgg_model.predict(img_array, verbose=0)
+        
+        # Get predicted class
+        predicted_idx = np.argmax(predictions[0])
+        predicted_class = _class_names[predicted_idx]
+        confidence = float(predictions[0][predicted_idx])
+        
+        # Get all probabilities
+        all_probs = {
+            class_name: float(prob)
+            for class_name, prob in zip(_class_names, predictions[0])
+        }
+        
+        # Generate remark
+        remark = DEFECT_REMARKS.get(predicted_class, "Analysis complete.")
+        
+        return {
+            'predicted_class': predicted_class,
+            'confidence': confidence,
+            'all_probabilities': all_probs,
+            'remark': remark
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 # Routes
 @app.get("/")
@@ -339,12 +468,161 @@ def get_inspections(uid: str):
                 "status": insp.status,
                 "remark": insp.remark,
                 "inspector_id": insp.inspector_id,
+                "ai_classification": insp.ai_classification,
+                "ai_confidence": insp.ai_confidence,
                 "inspected_at": insp.inspected_at.isoformat() if insp.inspected_at else None
             }
             for insp in inspections
         ]
     finally:
         db.close()
+
+# ============================================================================
+# VGG DEFECT CLASSIFICATION ENDPOINTS
+# ============================================================================
+
+@app.post("/api/classify-defect", response_model=DefectClassificationResponse)
+async def classify_defect(file: UploadFile = File(...)):
+    """
+    Classify railway component defect from uploaded image
+    Returns: Predicted defect class (Rust, Crack, Broken, Damaged, Normal) with confidence
+    """
+    try:
+        # Read image file
+        image_data = await file.read()
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Predict defect
+        result = predict_defect(image)
+        
+        return DefectClassificationResponse(**result)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
+
+@app.post("/api/classify-defect-base64", response_model=DefectClassificationResponse)
+def classify_defect_base64(request: DefectClassificationRequest):
+    """
+    Classify railway component defect from base64 encoded image
+    Used by mobile app to send captured photos
+    """
+    try:
+        # Decode base64 image
+        image_data = base64.b64decode(request.image_base64)
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Predict defect
+        result = predict_defect(image)
+        
+        return DefectClassificationResponse(**result)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
+
+@app.post("/qr/inspection-with-ai")
+def submit_inspection_with_ai(
+    qr_id: str,
+    status: str,
+    remark: str,
+    inspector_id: Optional[int] = None,
+    file: Optional[UploadFile] = File(None)
+):
+    """
+    Submit inspection with optional AI classification from photo
+    """
+    db = SessionLocal()
+    try:
+        # Check if item exists
+        item = db.query(Item).filter(Item.uid == qr_id).first()
+        
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        ai_classification = None
+        ai_confidence = None
+        
+        # If photo provided, run AI classification
+        if file:
+            try:
+                image_data = file.file.read()
+                image = Image.open(io.BytesIO(image_data))
+                prediction = predict_defect(image)
+                
+                ai_classification = prediction['predicted_class']
+                ai_confidence = prediction['confidence']
+                
+                # Use AI remark if no manual remark provided
+                if not remark or remark.strip() == "":
+                    remark = prediction['remark']
+                    
+            except Exception as e:
+                print(f"AI classification failed: {e}")
+                # Continue without AI classification
+        
+        # Create inspection record
+        inspection = Inspection(
+            item_uid=qr_id,
+            status=status,
+            remark=remark,
+            inspector_id=inspector_id,
+            ai_classification=ai_classification,
+            ai_confidence=ai_confidence,
+            inspected_at=datetime.utcnow()
+        )
+        db.add(inspection)
+        
+        # Update item status based on inspection
+        if status in ["approved", "passed", "ok"]:
+            item.current_status = "inspected"
+        elif status in ["rejected", "failed", "damaged"]:
+            item.current_status = "rejected"
+        else:
+            item.current_status = status
+        
+        item.updated_at = datetime.utcnow()
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Inspection submitted successfully",
+            "inspection_id": inspection.id,
+            "item_uid": qr_id,
+            "new_status": item.current_status,
+            "ai_classification": ai_classification,
+            "ai_confidence": ai_confidence
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error saving inspection: {str(e)}")
+    finally:
+        db.close()
+
+@app.get("/api/model-status")
+def get_model_status():
+    """Check if VGG model is loaded and ready"""
+    global _vgg_model
+    
+    is_loaded = _vgg_model is not None
+    
+    return {
+        "model_loaded": is_loaded,
+        "model_type": "VGG16 Transfer Learning" if is_loaded else None,
+        "classes": _class_names if is_loaded else [],
+        "status": "ready" if is_loaded else "not loaded",
+        "message": "Model is ready for predictions" if is_loaded else "Model needs to be trained first"
+    }
+
+# Load model on startup
+@app.on_event("startup")
+async def startup_event():
+    """Load VGG model when server starts"""
+    print("\n" + "="*70)
+    print("🚂 Railway Component Inspection Backend Starting...")
+    print("="*70)
+    load_vgg_model()
+    print("="*70 + "\n")
 
 # Run with: uvicorn main:app --host 0.0.0.0 --port 8000
 if __name__ == "__main__":

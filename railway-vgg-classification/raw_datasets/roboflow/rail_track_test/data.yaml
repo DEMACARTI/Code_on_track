@@ -1,0 +1,13 @@
+names:
+- track_bolt
+- track_bolt_missing
+nc: 2
+roboflow:
+  license: CC BY 4.0
+  project: rail_track_test
+  url: https://universe.roboflow.com/w-t-a/rail_track_test/dataset/1
+  version: 1
+  workspace: w-t-a
+test: ../test/images
+train: ../train/images
+val: ../valid/images

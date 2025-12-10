@@ -1,0 +1,13 @@
+names:
+- Faults
+- No Fault
+nc: 2
+roboflow:
+  license: CC BY 4.0
+  project: rail-track-5njgn
+  url: https://universe.roboflow.com/xyz-rf6um/rail-track-5njgn/dataset/1
+  version: 1
+  workspace: xyz-rf6um
+test: ../test/images
+train: ../train/images
+val: ../valid/images

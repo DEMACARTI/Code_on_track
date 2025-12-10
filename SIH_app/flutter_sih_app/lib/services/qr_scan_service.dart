@@ -48,6 +48,9 @@ class ScannedItem {
 
 /// Service to handle QR code scanning and backend validation
 abstract class QRScanService {
+  /// Get the base URL for the backend API
+  String get baseUrl;
+
   /// Scan QR code data and validate with backend
   /// Returns ScannedItem if found, null if not found or error
   Future<ScannedItem?> scanQRCode(String qrData);
@@ -180,6 +183,9 @@ class RestQRScanService implements QRScanService {
 
 /// Mock QR scan service for testing
 class MockQRScanService implements QRScanService {
+  @override
+  String get baseUrl => 'http://localhost:8000'; // Mock base URL
+
   final Map<String, Map<String, dynamic>> _mockDatabase = {
     'QR001': {
       'id': 'QR001',

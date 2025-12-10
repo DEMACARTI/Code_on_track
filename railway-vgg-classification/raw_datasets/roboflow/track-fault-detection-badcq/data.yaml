@@ -1,0 +1,13 @@
+names:
+- defective
+- non-defective
+nc: 2
+roboflow:
+  license: CC BY 4.0
+  project: track-fault-detection-badcq
+  url: https://universe.roboflow.com/track-detection-0kr1b/track-fault-detection-badcq/dataset/1
+  version: 1
+  workspace: track-detection-0kr1b
+test: ../test/images
+train: ../train/images
+val: ../valid/images

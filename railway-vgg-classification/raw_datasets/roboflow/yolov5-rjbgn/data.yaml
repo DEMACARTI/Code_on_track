@@ -1,0 +1,13 @@
+names:
+- Defective
+- Non Defective
+nc: 2
+roboflow:
+  license: CC BY 4.0
+  project: yolov5-rjbgn
+  url: https://universe.roboflow.com/own-zsacw/yolov5-rjbgn/dataset/1
+  version: 1
+  workspace: own-zsacw
+test: ../test/images
+train: ../train/images
+val: ../valid/images
