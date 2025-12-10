@@ -174,22 +174,22 @@ def load_vgg_model():
         from pathlib import Path
         
         # Path to the trained model - try multiple locations
-        # Priority 1: Local best_model.keras (for Render deployment)
-        model_path = Path(__file__).parent / 'best_model.keras'
+        # Priority 1: Try railway-vgg-classification output (latest trained model)
+        model_path = Path(__file__).parent.parent / 'railway-vgg-classification' / 'railway_defect_output' / 'best_model_fine_tuned.keras'
         
         if not model_path.exists():
-            # Priority 2: Try /opt/render paths for production
+            # Priority 2: Alternative absolute path (local dev)
+            model_path = Path('/Users/dakshrathore/Desktop/Code_on_track/railway-vgg-classification/railway_defect_output/best_model_fine_tuned.keras')
+        
+        if not model_path.exists():
+            # Priority 3: Local best_model.keras (for Render deployment)
+            model_path = Path(__file__).parent / 'best_model.keras'
+        
+        if not model_path.exists():
+            # Priority 4: Try /opt/render paths for production
             render_path = Path('/opt/render/project/src/mobile_backend/best_model.keras')
             if render_path.exists():
                 model_path = render_path
-        
-        if not model_path.exists():
-            # Priority 3: Railway-vgg-classification output directory (local dev)
-            model_path = Path(__file__).parent.parent / 'railway-vgg-classification' / 'railway_defect_output' / 'best_model_fine_tuned.keras'
-        
-        if not model_path.exists():
-            # Priority 4: Alternative absolute path (local dev)
-            model_path = Path('/Users/dakshrathore/Desktop/Code_on_track/railway-vgg-classification/railway_defect_output/best_model_fine_tuned.keras')
         
         if model_path.exists():
             print(f"Loading VGG model from: {model_path}")
