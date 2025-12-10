@@ -174,12 +174,12 @@ def load_vgg_model():
         from pathlib import Path
         
         # Path to the trained model - try multiple locations
-        # Priority 1: Try railway-vgg-classification output (latest trained model)
-        model_path = Path(__file__).parent.parent / 'railway-vgg-classification' / 'railway_defect_output' / 'best_model_fine_tuned.keras'
+        # Priority 1: Try best_model_initial.keras (created during training)
+        model_path = Path(__file__).parent.parent / 'railway-vgg-classification' / 'railway_defect_output' / 'best_model_initial.keras'
         
         if not model_path.exists():
             # Priority 2: Alternative absolute path (local dev)
-            model_path = Path('/Users/dakshrathore/Desktop/Code_on_track/railway-vgg-classification/railway_defect_output/best_model_fine_tuned.keras')
+            model_path = Path('/Users/dakshrathore/Desktop/Code_on_track/railway-vgg-classification/railway_defect_output/best_model_initial.keras')
         
         if not model_path.exists():
             # Priority 3: Local best_model.keras (for Render deployment)
@@ -193,17 +193,10 @@ def load_vgg_model():
         
         if model_path.exists():
             print(f"Loading VGG model from: {model_path}")
-            # Force use of legacy Keras format for compatibility with Keras 2 models
+            # Load model with Keras 3
             _vgg_model = tf.keras.models.load_model(
                 str(model_path),
-                compile=False,
-                safe_mode=False  # Disable Keras 3 safe mode to load Keras 2 models
-            )
-            # Recompile with current Keras version
-            _vgg_model.compile(
-                optimizer='adam',
-                loss='categorical_crossentropy',
-                metrics=['accuracy']
+                compile=True
             )
             print("✅ VGG model loaded successfully!")
             return True
