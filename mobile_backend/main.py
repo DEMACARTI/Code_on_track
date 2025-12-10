@@ -186,7 +186,18 @@ def load_vgg_model():
         
         if model_path.exists():
             print(f"Loading VGG model from: {model_path}")
-            _vgg_model = tf.keras.models.load_model(str(model_path))
+            # Force use of legacy Keras format for compatibility with Keras 2 models
+            _vgg_model = tf.keras.models.load_model(
+                str(model_path),
+                compile=False,
+                safe_mode=False  # Disable Keras 3 safe mode to load Keras 2 models
+            )
+            # Recompile with current Keras version
+            _vgg_model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy']
+            )
             print("✅ VGG model loaded successfully!")
             return True
         else:
