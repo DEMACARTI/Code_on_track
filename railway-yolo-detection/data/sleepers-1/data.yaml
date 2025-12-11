@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['clips', 'sleepers']
+
+roboflow:
+  workspace: daksh-e0zes
+  project: sleepers-4erz0
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/daksh-e0zes/sleepers-4erz0/dataset/1
