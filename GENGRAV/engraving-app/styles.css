@@ -66,25 +66,26 @@ body {
 
 /* Container */
 .container {
-  max-width: 1600px;
-  margin: 0 auto;
-  min-height: 100vh;
+  width: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* Header */
 .header {
   background: var(--gradient-primary);
-  padding: 20px 32px;
+  padding: 16px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
 }
 
 .header h1 {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: white;
   display: flex;
@@ -95,7 +96,7 @@ body {
 
 .header h1::before {
   content: "⚡";
-  font-size: 1.5rem;
+  font-size: 1.3rem;
 }
 
 .connection-status {
@@ -141,26 +142,31 @@ body {
   }
 }
 
-/* Content Layout */
+/* Content Layout - Two Panes */
 .content {
   display: flex;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .left-panel {
-  flex: 0 0 420px;
+  width: 380px;
+  min-width: 320px;
+  max-width: 420px;
   background: var(--primary-700);
-  padding: 20px;
+  padding: 16px;
   border-right: 1px solid var(--glass-border);
   overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .right-panel {
   flex: 1;
-  padding: 20px;
+  padding: 16px;
   background: var(--primary-800);
   overflow-y: auto;
+  min-width: 0;
 }
 
 /* Panel Sections */
