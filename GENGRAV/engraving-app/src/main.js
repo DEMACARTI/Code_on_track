@@ -1,14 +1,18 @@
 /**
  * GENGRAV Main Process - GRBL 1.1 Controller
+ * With Direct Supabase Database Connection
  */
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('node:path');
 const { GRBLController, GRBL_SETTINGS, LASER_DEFAULTS, BAUD_RATES, CONNECTION_OPTIONS, REALTIME_COMMANDS, GRBL_VERSION } = require('./grbl-controller');
+const db = require('./database');
+const QRCode = require('qrcode');
 
 if (require('electron-squirrel-startup')) app.quit();
 
 const grbl = new GRBLController();
 let mainWindow = null;
+let dbConnected = false;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -32,14 +36,52 @@ const createWindow = () => {
   grbl.on('alarm', (a) => mainWindow?.webContents.send('grbl:alarm', a));
   grbl.on('message', (m) => mainWindow?.webContents.send('grbl:message', m));
 
+  // Send database connection status to renderer
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.send('db:status', { connected: dbConnected });
+  });
+
   if (process.env.NODE_ENV === 'development') mainWindow.webContents.openDevTools();
 };
 
-app.whenReady().then(() => {
+// Test database connection before starting the app
+async function initializeApp() {
+  console.log('🚀 GENGRAV Starting...');
+  console.log('📡 Testing database connection...');
+  
+  const dbResult = await db.testConnection();
+  
+  if (dbResult.success) {
+    console.log('✅ Database connection successful!');
+    dbConnected = true;
+  } else {
+    console.error('❌ Database connection failed:', dbResult.error);
+    dbConnected = false;
+    
+    // Show error dialog but continue anyway
+    dialog.showMessageBox({
+      type: 'warning',
+      title: 'Database Connection Failed',
+      message: 'Could not connect to the database.',
+      detail: `Error: ${dbResult.error}\n\nThe app will continue but QR code fetching may not work.`,
+      buttons: ['Continue Anyway', 'Quit'],
+    }).then(({ response }) => {
+      if (response === 1) {
+        app.quit();
+      }
+    });
+  }
+  
   createWindow();
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+}
+
+app.whenReady().then(initializeApp);
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+app.on('window-all-closed', () => { 
+  grbl.disconnect(); 
+  db.closePool();
+  if (process.platform !== 'darwin') app.quit(); 
 });
-app.on('window-all-closed', () => { grbl.disconnect(); if (process.platform !== 'darwin') app.quit(); });
 
 // ========== Core IPC Handlers ==========
 ipcMain.handle('grbl:listPorts', () => grbl.listPorts());
@@ -113,4 +155,113 @@ ipcMain.handle('grbl:setStartupBlock', (_, { index, gcode }) => grbl.setStartupB
 ipcMain.handle('grbl:toggleCheckMode', () => grbl.toggleCheckMode().then(() => ({ success: true })).catch(e => ({ success: false, error: e.message })));
 ipcMain.handle('grbl:sleep', () => grbl.sleep().then(() => ({ success: true })).catch(e => ({ success: false, error: e.message })));
 
-console.log('GENGRAV loaded - GRBL 1.1 Controller');
+// ========== Database/API Handlers for QR Codes (Direct Supabase Connection) ==========
+
+// Test database connection
+ipcMain.handle('db:testConnection', async () => {
+  return await db.testConnection();
+});
+
+// Get database connection status
+ipcMain.handle('db:getStatus', () => {
+  return { connected: dbConnected };
+});
+
+// Fetch all QR codes/items from database
+ipcMain.handle('api:fetchQRCodes', async () => {
+  if (!dbConnected) {
+    // Try to reconnect
+    const result = await db.testConnection();
+    if (result.success) {
+      dbConnected = true;
+    } else {
+      return { success: false, error: 'Database not connected' };
+    }
+  }
+  
+  return await db.fetchItems(50);
+});
+
+// Fetch items pending engraving
+ipcMain.handle('api:fetchPendingEngravings', async () => {
+  if (!dbConnected) {
+    return { success: false, error: 'Database not connected' };
+  }
+  return await db.fetchPendingEngravings(50);
+});
+
+// Fetch a single item by UID
+ipcMain.handle('api:fetchQRImage', async (_, uid) => {
+  if (!dbConnected) {
+    return { success: false, error: 'Database not connected' };
+  }
+  return await db.fetchItemByUid(uid);
+});
+
+// Update item status after engraving
+ipcMain.handle('api:updateItemStatus', async (_, { uid, status }) => {
+  if (!dbConnected) {
+    return { success: false, error: 'Database not connected' };
+  }
+  return await db.updateItemStatus(uid, status);
+});
+
+// Record an engraving job
+ipcMain.handle('api:recordEngraving', async (_, engravingData) => {
+  if (!dbConnected) {
+    return { success: false, error: 'Database not connected' };
+  }
+  return await db.recordEngraving(engravingData);
+});
+
+// Generate QR code as data URL
+ipcMain.handle('api:generateQRCode', async (_, { data, size }) => {
+  try {
+    const qrSize = size || 256;
+    const dataUrl = await QRCode.toDataURL(data, {
+      width: qrSize,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      },
+      errorCorrectionLevel: 'M'
+    });
+    return { success: true, dataUrl };
+  } catch (error) {
+    console.error('QR code generation error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Generate QR code as matrix (for G-code generation)
+ipcMain.handle('api:generateQRMatrix', async (_, { data }) => {
+  try {
+    // Get QR code as a 2D matrix
+    const qrData = await QRCode.create(data, { errorCorrectionLevel: 'M' });
+    const modules = qrData.modules;
+    const size = modules.size;
+    
+    // Convert to simple 2D array (1 = black, 0 = white)
+    const matrix = [];
+    for (let y = 0; y < size; y++) {
+      const row = [];
+      for (let x = 0; x < size; x++) {
+        row.push(modules.get(x, y) ? 1 : 0);
+      }
+      matrix.push(row);
+    }
+    
+    return { 
+      success: true, 
+      matrix,
+      size,
+      moduleCount: size
+    };
+  } catch (error) {
+    console.error('QR matrix generation error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+console.log('GENGRAV loaded - GRBL 1.1 Controller with Supabase Database');

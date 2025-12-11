@@ -93,3 +93,24 @@ contextBridge.exposeInMainWorld('grbl', {
     onAlarm: (cb) => ipcRenderer.on('grbl:alarm', (_, a) => cb(a)),
     onMessage: (cb) => ipcRenderer.on('grbl:message', (_, m) => cb(m))
 });
+
+// Expose API/Database functions for QR code fetching (Direct Supabase Connection)
+contextBridge.exposeInMainWorld('api', {
+    // Database connection
+    testConnection: () => ipcRenderer.invoke('db:testConnection'),
+    getDbStatus: () => ipcRenderer.invoke('db:getStatus'),
+    onDbStatus: (cb) => ipcRenderer.on('db:status', (_, s) => cb(s)),
+    
+    // QR codes / Items
+    fetchQRCodes: () => ipcRenderer.invoke('api:fetchQRCodes'),
+    fetchPendingEngravings: () => ipcRenderer.invoke('api:fetchPendingEngravings'),
+    fetchQRImage: (uid) => ipcRenderer.invoke('api:fetchQRImage', uid),
+    
+    // QR Code generation
+    generateQRCode: (data, size) => ipcRenderer.invoke('api:generateQRCode', { data, size }),
+    generateQRMatrix: (data) => ipcRenderer.invoke('api:generateQRMatrix', { data }),
+    
+    // Engraving operations
+    updateItemStatus: (uid, status) => ipcRenderer.invoke('api:updateItemStatus', { uid, status }),
+    recordEngraving: (data) => ipcRenderer.invoke('api:recordEngraving', data)
+});

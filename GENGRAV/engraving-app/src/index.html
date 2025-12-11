@@ -20,6 +20,10 @@
           <span class="dot"></span>
           <span class="text">Disconnected</span>
         </div>
+        <div id="dbStatus" class="connection disconnected" title="Database Connection">
+          <span class="dot"></span>
+          <span class="text">DB: Offline</span>
+        </div>
         <div class="position">
           <span>X: <b id="posX">0.000</b></span>
           <span>Y: <b id="posY">0.000</b></span>
@@ -193,16 +197,37 @@
 
       <!-- Center Panel -->
       <section class="panel center-panel">
+        <!-- QR Code Database Section -->
+        <div class="qr-database-section">
+          <div class="section-header">
+            <h2>📱 QR Codes from Database</h2>
+            <button id="refreshQRBtn" class="btn sm">🔄 Refresh</button>
+          </div>
+          <div id="qrList" class="qr-list">
+            <span class="hint">Click Refresh to load QR codes from database</span>
+          </div>
+        </div>
+        
         <div class="preview-box">
           <h2>📷 Preview</h2>
-          <div id="preview" class="preview"><span class="hint">Load image to preview</span></div>
+          <div id="preview" class="preview"><span class="hint">Select QR from database or load image</span></div>
           <input type="file" id="fileInput" accept="image/*" hidden>
         </div>
         <div class="actions">
           <button id="loadImageBtn" class="btn">📂 Load</button>
-          <button id="generateBtn" class="btn primary" disabled>Generate</button>
+          <button id="engravingSettingsBtn" class="btn">⚙️ Settings</button>
+          <button id="generateBtn" class="btn primary" disabled>Generate G-code</button>
+          <button id="previewGCodeBtn" class="btn" disabled>👁️ View G-code</button>
           <button id="startBtn" class="btn success" disabled>▶ Start</button>
           <button id="stopBtn" class="btn danger" disabled>⬛ Stop</button>
+        </div>
+        
+        <!-- Engraving Settings Summary -->
+        <div class="settings-summary">
+          <span>Speed: <b id="summarySpeed">300</b> mm/min</span>
+          <span>S-MIN: <b id="summarySMin">0</b></span>
+          <span>S-MAX: <b id="summarySMax">700</b></span>
+          <span>Size: <b id="summarySize">100x100</b> mm</span>
         </div>
         <div id="progressBox" class="progress-box" hidden>
           <div class="progress-bar">
@@ -227,6 +252,109 @@
         </section>
       </aside>
     </main>
+  </div>
+  
+  <!-- Engraving Settings Modal -->
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>⚙️ Engraving Settings</h2>
+        <button id="closeSettingsBtn" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Speed Section -->
+        <div class="settings-group">
+          <h3>Speed</h3>
+          <div class="setting-row">
+            <label for="engravingSpeed">Engraving Speed</label>
+            <input type="number" id="engravingSpeed" value="300" min="10" max="10000" step="10">
+            <span class="unit">mm/min</span>
+          </div>
+        </div>
+        
+        <!-- Laser Options Section -->
+        <div class="settings-group">
+          <h3>Laser Options</h3>
+          <div class="setting-row">
+            <label for="laserMode">Laser Mode</label>
+            <select id="laserMode">
+              <option value="M3">M3 - Constant Power</option>
+              <option value="M4">M4 - Dynamic Power</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label for="sMin">S-MIN (0-1000)</label>
+            <input type="number" id="sMin" value="0" min="0" max="1000" step="1">
+            <span class="unit" id="sMinPercent">0.0%</span>
+          </div>
+          <div class="setting-row">
+            <label for="sMax">S-MAX (0-1000)</label>
+            <input type="number" id="sMax" value="700" min="0" max="1000" step="1">
+            <span class="unit" id="sMaxPercent">70.0%</span>
+          </div>
+        </div>
+        
+        <!-- Image Size Section -->
+        <div class="settings-group">
+          <h3>Image Size and Position [mm]</h3>
+          <div class="setting-row">
+            <label>
+              <input type="checkbox" id="autoSize" checked>
+              Autosize
+            </label>
+            <input type="number" id="dpi" value="300" min="72" max="1200" step="1">
+            <span class="unit">DPI</span>
+          </div>
+          <div class="setting-row">
+            <label for="sizeW">Width</label>
+            <input type="number" id="sizeW" value="100" min="1" max="500" step="0.1">
+            <span class="unit">mm</span>
+          </div>
+          <div class="setting-row">
+            <label for="sizeH">Height</label>
+            <input type="number" id="sizeH" value="100" min="1" max="500" step="0.1">
+            <span class="unit">mm</span>
+          </div>
+          <div class="setting-row">
+            <label for="offsetX">Offset X</label>
+            <input type="number" id="offsetX" value="0" min="-500" max="500" step="0.1">
+            <span class="unit">mm</span>
+          </div>
+          <div class="setting-row">
+            <label for="offsetY">Offset Y</label>
+            <input type="number" id="offsetY" value="0" min="-500" max="500" step="0.1">
+            <span class="unit">mm</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="resetSettingsBtn" class="btn">↻ Reset Defaults</button>
+        <button id="cancelSettingsBtn" class="btn">Cancel</button>
+        <button id="saveSettingsBtn" class="btn success">✓ Save Settings</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- G-Code Preview Modal -->
+  <div id="gcodeModal" class="modal" hidden>
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2>📄 Generated G-Code</h2>
+        <button id="closeGCodeBtn" class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="gcode-info">
+          <span id="gcodeLineCount">0 lines</span>
+          <span id="gcodeEstimatedTime">Est. time: --</span>
+        </div>
+        <textarea id="gcodePreview" class="gcode-preview" readonly></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="copyGCodeBtn" class="btn">📋 Copy</button>
+        <button id="downloadGCodeBtn" class="btn">💾 Download</button>
+        <button id="closeGCodeModalBtn" class="btn success">Close</button>
+      </div>
+    </div>
   </div>
 </body>
 
