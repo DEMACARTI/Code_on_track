@@ -1,0 +1,15 @@
+# Elastic Rail Clip Data
+# Railway Component Detection - Elastic Clip Dataset
+
+path: /Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/erc_dataset
+train: train/images
+val: valid/images
+test: test/images
+
+# Number of classes
+nc: 2
+
+# Class names - Elastic Clip conditions
+names:
+  0: elastic_clip_good
+  1: elastic_clip_missing

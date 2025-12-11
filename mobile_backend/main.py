@@ -96,6 +96,24 @@ class DefectClassificationResponse(BaseModel):
     status: Optional[str] = "OK"
     model_available: Optional[bool] = True
 
+class BoundingBox(BaseModel):
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+class ComponentDetection(BaseModel):
+    class_id: int
+    class_name: str
+    confidence: float
+    bbox: BoundingBox
+
+class ComponentDetectionResponse(BaseModel):
+    num_detections: int
+    detections: list[ComponentDetection]
+    model_available: bool = True
+    inference_time_ms: Optional[float] = None
+
 # Database Model for Inspections
 class Inspection(Base):
     __tablename__ = "inspections"
@@ -157,6 +175,20 @@ def get_db():
 _vgg_model = None
 _class_names = ['Broken', 'Crack', 'Damaged', 'Normal', 'Rust']
 
+# ============================================================================
+# YOLO OBJECT DETECTION MODEL
+# ============================================================================
+
+# Global variable to store YOLO model
+_yolo_model = None
+_component_class_names = ['elastic_clip_good', 'elastic_clip_missing']
+
+# Component descriptions for API response
+COMPONENT_DESCRIPTIONS = {
+    'elastic_clip_good': 'Elastic Railway Clip - Good condition, properly secured',
+    'elastic_clip_missing': 'Elastic Railway Clip - Missing or damaged, needs replacement'
+}
+
 # Remark templates for each defect class
 DEFECT_REMARKS = {
     'Rust': 'Component shows signs of rust/corrosion. Metal surface oxidation detected.',
@@ -212,6 +244,112 @@ def load_vgg_model():
     except Exception as e:
         print(f"⚠️  Error loading model: {e}")
         return False
+
+def load_yolo_model():
+    """Load YOLO object detection model on startup"""
+    global _yolo_model
+    
+    try:
+        from ultralytics import YOLO
+        from pathlib import Path
+        
+        # Path to the trained YOLO model - try multiple locations
+        # Priority 1: Railway YOLO detection project
+        model_path = Path(__file__).parent.parent / 'railway-yolo-detection' / 'models' / 'best.pt'
+        
+        if not model_path.exists():
+            # Priority 2: Alternative absolute path (local dev)
+            model_path = Path('/Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/models/best.pt')
+        
+        if not model_path.exists():
+            # Priority 3: Local yolo_best.pt (for deployment)
+            model_path = Path(__file__).parent / 'yolo_best.pt'
+        
+        if not model_path.exists():
+            # Priority 4: Try /opt/render paths for production
+            render_path = Path('/opt/render/project/src/mobile_backend/yolo_best.pt')
+            if render_path.exists():
+                model_path = render_path
+        
+        if model_path.exists():
+            print(f"Loading YOLO model from: {model_path}")
+            _yolo_model = YOLO(str(model_path))
+            print("✅ YOLO object detection model loaded successfully!")
+            return True
+        else:
+            print(f"⚠️  YOLO model not found at: {model_path}")
+            print("Model will need to be trained first. Run: python railway-yolo-detection/scripts/train_yolo.py")
+            return False
+            
+    except ImportError:
+        print("⚠️  Ultralytics not installed. Install with: pip install ultralytics")
+        return False
+    except Exception as e:
+        print(f"⚠️  Error loading YOLO model: {e}")
+        return False
+
+def detect_components(image: Image.Image, conf_threshold: float = 0.25) -> dict:
+    """Detect railway components using YOLO model"""
+    global _yolo_model, _component_class_names
+    import time
+    
+    if _yolo_model is None:
+        # Try to load model if not already loaded
+        if not load_yolo_model():
+            return {
+                "num_detections": 0,
+                "detections": [],
+                "model_available": False,
+                "message": "YOLO model not available. Please train the model first."
+            }
+    
+    try:
+        start_time = time.time()
+        
+        # Convert PIL Image to numpy array
+        img_array = np.array(image)
+        
+        # Run inference
+        results = _yolo_model.predict(
+            source=img_array,
+            conf=conf_threshold,
+            save=False,
+            verbose=False
+        )
+        
+        inference_time = (time.time() - start_time) * 1000  # Convert to ms
+        
+        # Parse results
+        detections = []
+        for result in results:
+            boxes = result.boxes
+            
+            for i in range(len(boxes)):
+                class_id = int(boxes.cls[i].item())
+                class_name = _component_class_names[class_id] if class_id < len(_component_class_names) else f"class_{class_id}"
+                
+                detection = {
+                    'class_id': class_id,
+                    'class_name': class_name,
+                    'confidence': float(boxes.conf[i].item()),
+                    'bbox': {
+                        'x1': float(boxes.xyxy[i][0].item()),
+                        'y1': float(boxes.xyxy[i][1].item()),
+                        'x2': float(boxes.xyxy[i][2].item()),
+                        'y2': float(boxes.xyxy[i][3].item())
+                    }
+                }
+                detections.append(detection)
+        
+        return {
+            'num_detections': len(detections),
+            'detections': detections,
+            'model_available': True,
+            'inference_time_ms': round(inference_time, 2)
+        }
+        
+    except Exception as e:
+        raise Exception(f"Detection error: {str(e)}")
 
 def preprocess_image_for_vgg(image: Image.Image) -> np.ndarray:
     """Preprocess image for VGG model prediction"""
@@ -649,14 +787,107 @@ def get_model_status():
         "message": "Model is ready for predictions" if is_loaded else "Model needs to be trained first"
     }
 
-# Load model on startup
+# ============================================================================
+# YOLO COMPONENT DETECTION ENDPOINTS
+# ============================================================================
+
+@app.get("/api/detection-model-status")
+def get_detection_model_status():
+    """Check if YOLO object detection model is loaded and ready"""
+    global _yolo_model
+    
+    is_loaded = _yolo_model is not None
+    
+    return {
+        "model_loaded": is_loaded,
+        "model_type": "YOLOv8 Object Detection" if is_loaded else None,
+        "classes": _component_class_names if is_loaded else [],
+        "class_descriptions": COMPONENT_DESCRIPTIONS if is_loaded else {},
+        "status": "ready" if is_loaded else "not loaded",
+        "message": "Model is ready for component detection" if is_loaded else "Model needs to be trained first"
+    }
+
+@app.post("/api/detect-components", response_model=ComponentDetectionResponse)
+async def detect_railway_components(
+    file: UploadFile = File(...),
+    conf: float = 0.25
+):
+    """
+    Detect railway track components in uploaded image
+    
+    Components detected:
+    - elastic_clip: Spring clip holding rails to sleepers
+    - liner: Metal plate between rail and sleeper
+    - rubber_pad: Rubber cushion for vibration dampening
+    - sleeper: Concrete/wooden cross-tie supporting rails
+    
+    Returns bounding boxes, class labels, and confidence scores for each detected component
+    """
+    try:
+        # Read image file
+        image_data = await file.read()
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Detect components
+        result = detect_components(image, conf_threshold=conf)
+        
+        # Convert to response model format
+        detections = []
+        for det in result.get('detections', []):
+            detections.append(ComponentDetection(
+                class_id=det['class_id'],
+                class_name=det['class_name'],
+                confidence=det['confidence'],
+                bbox=BoundingBox(**det['bbox'])
+            ))
+        
+        return ComponentDetectionResponse(
+            num_detections=result['num_detections'],
+            detections=detections,
+            model_available=result.get('model_available', True),
+            inference_time_ms=result.get('inference_time_ms')
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Detection failed: {str(e)}")
+
+@app.post("/api/detect-components-base64")
+def detect_components_base64(request: DefectClassificationRequest, conf: float = 0.25):
+    """
+    Detect railway components from base64 encoded image
+    Used by mobile app to send captured photos
+    """
+    try:
+        # Decode base64 image
+        image_data = base64.b64decode(request.image_base64)
+        image = Image.open(io.BytesIO(image_data))
+        
+        # Detect components
+        result = detect_components(image, conf_threshold=conf)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Detection failed: {str(e)}")
+
+@app.get("/api/component-classes")
+def get_component_classes():
+    """Get list of detectable railway component classes with descriptions"""
+    return {
+        "classes": _component_class_names,
+        "descriptions": COMPONENT_DESCRIPTIONS
+    }
+
+# Load models on startup
 @app.on_event("startup")
 async def startup_event():
-    """Load VGG model when server starts"""
+    """Load VGG and YOLO models when server starts"""
     print("\n" + "="*70)
     print("🚂 Railway Component Inspection Backend Starting...")
     print("="*70)
+    print("\n📦 Loading AI Models...")
     load_vgg_model()
+    load_yolo_model()
     print("="*70 + "\n")
 
 # Run with: uvicorn main:app --host 0.0.0.0 --port 8000

@@ -1,0 +1,202 @@
+[
+  {
+    "image": "/Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/roboflow_dataset/test/images/IMG_20201114_102854_jpg.rf.1122b8b0bafa6491258bce422e56982a.jpg",
+    "num_detections": 1,
+    "detections": [
+      {
+        "class_id": 0,
+        "class_name": "elastic_clip",
+        "confidence": 0.9485422372817993,
+        "bbox": {
+          "x1": 83.73846435546875,
+          "y1": 269.856201171875,
+          "x2": 328.22723388671875,
+          "y2": 512.0
+        },
+        "bbox_normalized": {
+          "x_center": 0.40231025218963623,
+          "y_center": 0.7635314464569092,
+          "width": 0.47751712799072266,
+          "height": 0.47293710708618164
+        }
+      }
+    ]
+  },
+  {
+    "image": "/Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/roboflow_dataset/test/images/aug_prefix_0_7762_jpg.rf.8e75428d792fd65b4faa5f13fe0d5268.jpg",
+    "num_detections": 2,
+    "detections": [
+      {
+        "class_id": 1,
+        "class_name": "liner",
+        "confidence": 0.6677472591400146,
+        "bbox": {
+          "x1": 338.4488830566406,
+          "y1": 170.55662536621094,
+          "x2": 512.0,
+          "y2": 295.2803649902344
+        },
+        "bbox_normalized": {
+          "x_center": 0.8305164575576782,
+          "y_center": 0.45491892099380493,
+          "width": 0.3389670252799988,
+          "height": 0.24360105395317078
+        }
+      },
+      {
+        "class_id": 1,
+        "class_name": "liner",
+        "confidence": 0.48069310188293457,
+        "bbox": {
+          "x1": 0.505828857421875,
+          "y1": 378.1048889160156,
+          "x2": 97.41046142578125,
+          "y2": 469.4111328125
+        },
+        "bbox_normalized": {
+          "x_center": 0.09562137722969055,
+          "y_center": 0.8276523351669312,
+          "width": 0.1892668604850769,
+          "height": 0.17833250761032104
+        }
+      }
+    ]
+  },
+  {
+    "image": "/Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/roboflow_dataset/test/images/IMG_20201114_100032_jpg.rf.3b8a21b62e88d4f61785ea1e509963d3.jpg",
+    "num_detections": 1,
+    "detections": [
+      {
+        "class_id": 0,
+        "class_name": "elastic_clip",
+        "confidence": 0.969032347202301,
+        "bbox": {
+          "x1": 126.26542663574219,
+          "y1": 266.5147399902344,
+          "x2": 345.14398193359375,
+          "y2": 512.0
+        },
+        "bbox_normalized": {
+          "x_center": 0.4603607654571533,
+          "y_center": 0.7602683305740356,
+          "width": 0.42749717831611633,
+          "height": 0.4794633984565735
+        }
+      }
+    ]
+  },
+  {
+    "image": "/Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/roboflow_dataset/test/images/aug_prefix_0_5534_jpg.rf.c162b1416747fdd3a089ec4211707f46.jpg",
+    "num_detections": 5,
+    "detections": [
+      {
+        "class_id": 0,
+        "class_name": "elastic_clip",
+        "confidence": 0.9534264206886292,
+        "bbox": {
+          "x1": 21.691064834594727,
+          "y1": 396.34442138671875,
+          "x2": 145.30160522460938,
+          "y2": 456.98565673828125
+        },
+        "bbox_normalized": {
+          "x_center": 0.16307878494262695,
+          "y_center": 0.8333301544189453,
+          "width": 0.24142684042453766,
+          "height": 0.11843991279602051
+        }
+      },
+      {
+        "class_id": 1,
+        "class_name": "liner",
+        "confidence": 0.8015267252922058,
+        "bbox": {
+          "x1": 363.7880859375,
+          "y1": 100.91060638427734,
+          "x2": 510.9854431152344,
+          "y2": 177.86817932128906
+        },
+        "bbox_normalized": {
+          "x_center": 0.8542710542678833,
+          "y_center": 0.2722449004650116,
+          "width": 0.28749483823776245,
+          "height": 0.150307759642601
+        }
+      },
+      {
+        "class_id": 0,
+        "class_name": "elastic_clip",
+        "confidence": 0.7119681239128113,
+        "bbox": {
+          "x1": 247.6762237548828,
+          "y1": 406.9092102050781,
+          "x2": 351.4449768066406,
+          "y2": 476.60333251953125
+        },
+        "bbox_normalized": {
+          "x_center": 0.5850793123245239,
+          "y_center": 0.8628052473068237,
+          "width": 0.20267334580421448,
+          "height": 0.13612133264541626
+        }
+      },
+      {
+        "class_id": 1,
+        "class_name": "liner",
+        "confidence": 0.4203677773475647,
+        "bbox": {
+          "x1": 57.057640075683594,
+          "y1": 76.59947204589844,
+          "x2": 216.1523895263672,
+          "y2": 157.25534057617188
+        },
+        "bbox_normalized": {
+          "x_center": 0.2668066620826721,
+          "y_center": 0.22837384045124054,
+          "width": 0.3107319474220276,
+          "height": 0.1575309932231903
+        }
+      },
+      {
+        "class_id": 0,
+        "class_name": "elastic_clip",
+        "confidence": 0.30349665880203247,
+        "bbox": {
+          "x1": 41.246131896972656,
+          "y1": 392.271484375,
+          "x2": 152.65774536132812,
+          "y2": 452.04345703125
+        },
+        "bbox_normalized": {
+          "x_center": 0.18935924768447876,
+          "y_center": 0.824526309967041,
+          "width": 0.21760080754756927,
+          "height": 0.11674213409423828
+        }
+      }
+    ]
+  },
+  {
+    "image": "/Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/roboflow_dataset/test/images/IMG_20201114_100259_jpg.rf.9c456f771fc09ddfb6309d00aa6a055f.jpg",
+    "num_detections": 1,
+    "detections": [
+      {
+        "class_id": 0,
+        "class_name": "elastic_clip",
+        "confidence": 0.7318836450576782,
+        "bbox": {
+          "x1": 161.44198608398438,
+          "y1": 282.38214111328125,
+          "x2": 319.58709716796875,
+          "y2": 414.28485107421875
+        },
+        "bbox_normalized": {
+          "x_center": 0.4697549641132355,
+          "y_center": 0.6803388595581055,
+          "width": 0.308877170085907,
+          "height": 0.25762248039245605
+        }
+      }
+    ]
+  }
+]
