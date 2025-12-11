@@ -223,6 +223,34 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
     }
   }
 
+  Color _getSeverityColor(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'good':
+        return Colors.green;
+      case 'fair':
+        return Colors.orange;
+      case 'bad':
+      case 'poor':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getSeverityIcon(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'good':
+        return Icons.check_circle;
+      case 'fair':
+        return Icons.warning;
+      case 'bad':
+      case 'poor':
+        return Icons.error;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -492,57 +520,148 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
+                            color: _aiClassification!.wrongComponent 
+                                ? Colors.red.shade50 
+                                : Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.shade200),
+                            border: Border.all(
+                              color: _aiClassification!.wrongComponent 
+                                  ? Colors.red.shade300 
+                                  : Colors.blue.shade200,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    _aiClassification!.icon,
-                                    style: const TextStyle(fontSize: 24),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'AI Detected: ${_aiClassification!.predictedClass}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
+                              // Wrong component warning
+                              if (_aiClassification!.wrongComponent) ...[
+                                Row(
+                                  children: [
+                                    Icon(Icons.warning_amber, 
+                                         color: Colors.red.shade700, size: 28),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        '⚠️ Wrong Component!',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Colors.red.shade700,
+                                        ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _aiClassification!.remark,
+                                  style: TextStyle(
+                                    color: Colors.red.shade600,
+                                    fontSize: 13,
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade100,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      _aiClassification!.confidencePercent,
+                                ),
+                              ] else ...[
+                                // Component Detected row
+                                Row(
+                                  children: [
+                                    Icon(Icons.search, 
+                                         color: Colors.blue.shade700, size: 24),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Component Detected:',
                                       style: TextStyle(
-                                        color: Colors.green.shade800,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                        color: Colors.black54,
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _aiClassification!.componentDetected ?? 
+                                            _aiClassification!.componentType ?? 'Unknown',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        _aiClassification!.confidencePercent,
+                                        style: TextStyle(
+                                          color: Colors.green.shade800,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Divider(height: 16),
+                                // Severity row
+                                Row(
+                                  children: [
+                                    Icon(
+                                      _getSeverityIcon(_aiClassification!.severity ?? 'Unknown'),
+                                      color: _getSeverityColor(_aiClassification!.severity ?? 'Unknown'),
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Severity:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _getSeverityColor(_aiClassification!.severity ?? 'Unknown').withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        _aiClassification!.severity ?? 'Unknown',
+                                        style: TextStyle(
+                                          color: _getSeverityColor(_aiClassification!.severity ?? 'Unknown'),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                // Defects if any
+                                if (_aiClassification!.defects.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children: _aiClassification!.defects.map((defect) {
+                                      return Chip(
+                                        label: Text(defect, style: const TextStyle(fontSize: 12)),
+                                        backgroundColor: Colors.orange.shade100,
+                                        padding: EdgeInsets.zero,
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      );
+                                    }).toList(),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Severity: ${_aiClassification!.severityLevel}',
-                                style: TextStyle(
-                                  color: Colors.grey.shade700,
-                                  fontSize: 13,
-                                ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
