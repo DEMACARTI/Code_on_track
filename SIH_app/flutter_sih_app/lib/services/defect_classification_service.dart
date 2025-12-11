@@ -24,35 +24,64 @@ class DefectClassificationService {
 
   /// Classify defect from base64 encoded image using the new AI pipeline
   /// Uses YOLO for detection + ResNet for classification
-  Future<DefectClassificationResult?> classifyDefectFromBase64(String base64Image) async {
+  /// [expectedComponent] - From QR code, validates detected matches expected
+  Future<DefectClassificationResult?> classifyDefectFromBase64(
+    String base64Image, {
+    String? expectedComponent,
+  }) async {
     try {
       // Use new multi-model pipeline endpoint
       final url = Uri.parse('$baseUrl/api/inspect-component');
       
+      // Build request body with optional expected_component
+      final requestBody = <String, dynamic>{
+        'image_base64': base64Image,
+      };
+      if (expectedComponent != null) {
+        requestBody['expected_component'] = expectedComponent;
+      }
+      
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'image_base64': base64Image}),
+        body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Check if pipeline returned success
-        if (data['success'] == true) {
-          // Map pipeline response to DefectClassificationResult format
+        // Check if wrong component detected (QR vs camera mismatch)
+        if (data['wrong_component'] == true) {
           return DefectClassificationResult(
-            predictedClass: data['condition'] ?? 'Unknown',
+            predictedClass: 'Wrong Component',
             confidence: (data['detection_confidence'] ?? 0.0).toDouble(),
-            allProbabilities: {}, // Pipeline doesn't return individual probabilities
-            remark: (data['recommendations'] as List?)?.join(' ') ?? 
-                    'Component: ${data['component_class'] ?? 'Unknown'}',
+            allProbabilities: {},
+            remark: data['error'] ?? 'Wrong component detected',
             componentType: data['component_type'],
             componentClass: data['component_class'],
+            componentDetected: data['component_detected'],
+            severity: null,
+            defects: [],
+            wrongComponent: true,
+          );
+        }
+        
+        // Check if pipeline returned success
+        if (data['success'] == true) {
+          return DefectClassificationResult(
+            predictedClass: data['severity'] ?? data['condition'] ?? 'Unknown',
+            confidence: (data['detection_confidence'] ?? 0.0).toDouble(),
+            allProbabilities: {},
+            remark: (data['recommendations'] as List?)?.join(' ') ?? '',
+            componentType: data['component_type'],
+            componentClass: data['component_class'],
+            componentDetected: data['component_detected'],
+            severity: data['severity'],
             defects: List<String>.from(data['defects'] ?? []),
+            wrongComponent: false,
           );
         } else {
-          // Pipeline returned an error (e.g., multiple components detected)
+          // Pipeline returned an error (e.g., no component detected)
           print('Pipeline error: ${data['error']}');
           return DefectClassificationResult(
             predictedClass: 'Unknown',
@@ -61,7 +90,10 @@ class DefectClassificationService {
             remark: data['error'] ?? 'Inspection failed',
             componentType: null,
             componentClass: null,
+            componentDetected: null,
+            severity: null,
             defects: [],
+            wrongComponent: false,
           );
         }
       } else {
@@ -107,9 +139,12 @@ class DefectClassificationResult {
   final double confidence;
   final Map<String, double> allProbabilities;
   final String remark;
-  final String? componentType;  // e.g., 'erc', 'sleeper'
-  final String? componentClass; // e.g., 'elastic_clip_good'
-  final List<String> defects;   // List of detected defects
+  final String? componentType;      // e.g., 'erc', 'sleeper'
+  final String? componentClass;     // e.g., 'elastic_clip_good'
+  final String? componentDetected;  // Human-readable: 'Elastic Rail Clip', 'Sleeper'
+  final String? severity;           // 'Good', 'Fair', 'Bad'
+  final List<String> defects;
+  final bool wrongComponent;        // True if detected != expected from QR
 
   DefectClassificationResult({
     required this.predictedClass,
@@ -118,12 +153,15 @@ class DefectClassificationResult {
     required this.remark,
     this.componentType,
     this.componentClass,
+    this.componentDetected,
+    this.severity,
     this.defects = const [],
+    this.wrongComponent = false,
   });
 
   factory DefectClassificationResult.fromJson(Map<String, dynamic> json) {
     return DefectClassificationResult(
-      predictedClass: json['predicted_class'] ?? json['condition'] ?? '',
+      predictedClass: json['predicted_class'] ?? json['severity'] ?? json['condition'] ?? '',
       confidence: (json['confidence'] ?? json['detection_confidence'] ?? 0.0).toDouble(),
       allProbabilities: Map<String, double>.from(
         (json['all_probabilities'] ?? {}).map(
@@ -133,7 +171,10 @@ class DefectClassificationResult {
       remark: json['remark'] ?? '',
       componentType: json['component_type'],
       componentClass: json['component_class'],
+      componentDetected: json['component_detected'],
+      severity: json['severity'],
       defects: List<String>.from(json['defects'] ?? []),
+      wrongComponent: json['wrong_component'] ?? false,
     );
   }
 

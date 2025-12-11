@@ -844,16 +844,20 @@ def get_component_classes():
 class InspectionRequest(BaseModel):
     image_base64: str
     component_type: Optional[str] = None  # Optional: 'erc', 'sleeper', 'liner', 'rubber_pad'
+    expected_component: Optional[str] = None  # From QR code: validate detected matches expected
 
 class InspectionResponse(BaseModel):
     success: bool
-    component_type: Optional[str] = None
-    component_class: Optional[str] = None
+    component_detected: Optional[str] = None  # Human-readable: "Sleeper", "Elastic Rail Clip", etc.
+    component_type: Optional[str] = None  # Internal type: 'erc', 'sleeper'
+    component_class: Optional[str] = None  # Detection class name
     detection_confidence: Optional[float] = None
-    condition: Optional[str] = None
+    severity: Optional[str] = None  # "Good", "Fair", "Bad"
+    condition: Optional[str] = None  # Alias for severity
     defects: list = []
     recommendations: list = []
     error: Optional[str] = None
+    wrong_component: bool = False  # True if detected != expected
 
 @app.post("/api/inspect-component", response_model=InspectionResponse)
 async def inspect_component(request: InspectionRequest):
@@ -879,12 +883,41 @@ async def inspect_component(request: InspectionRequest):
         result = pipeline.inspect(image_data, request.component_type)
         
         if result['success']:
+            detected_type = result.get('component_type', '').lower()
+            
+            # Component name mapping for display
+            COMPONENT_DISPLAY_NAMES = {
+                'erc': 'Elastic Rail Clip',
+                'sleeper': 'Sleeper',
+                'liner': 'Liner',
+                'rubber_pad': 'Rubber Pad'
+            }
+            component_detected = COMPONENT_DISPLAY_NAMES.get(detected_type, detected_type.title())
+            
+            # Validate expected component if provided (from QR code)
+            if request.expected_component:
+                expected = request.expected_component.lower()
+                if detected_type != expected:
+                    expected_name = COMPONENT_DISPLAY_NAMES.get(expected, expected.title())
+                    return InspectionResponse(
+                        success=False,
+                        component_detected=component_detected,
+                        component_type=detected_type,
+                        detection_confidence=result.get('detection_confidence'),
+                        wrong_component=True,
+                        error=f"Wrong component! Expected {expected_name} but detected {component_detected}. Please position the correct component in front of the camera."
+                    )
+            
+            # Success - return full results
+            condition = result.get('condition', 'Unknown')
             return InspectionResponse(
                 success=True,
-                component_type=result.get('component_type'),
+                component_detected=component_detected,
+                component_type=detected_type,
                 component_class=result.get('component_class'),
                 detection_confidence=result.get('detection_confidence'),
-                condition=result.get('condition'),
+                severity=condition,
+                condition=condition,
                 defects=result.get('defects', []),
                 recommendations=result.get('recommendations', [])
             )
