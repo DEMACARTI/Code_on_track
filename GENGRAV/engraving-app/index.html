@@ -95,8 +95,9 @@
             <p class="placeholder-text">Select a QR code to preview</p>
           </div>
           <div class="form-group">
-            <label for="qrSize">QR Size: <strong id="qrSizeValue">30</strong>mm</label>
-            <input type="range" id="qrSize" min="10" max="80" value="30" step="5" class="slider">
+            <label for="qrSize">QR Size: <strong id="qrSizeValue">50</strong>mm</label>
+            <input type="range" id="qrSize" min="50" max="150" value="50" step="10" class="slider">
+            <span class="hint">Size range: 50mm - 150mm (exact output)</span>
           </div>
           <div class="button-group">
             <button id="generateGcodeBtn" class="btn-primary" disabled>Generate G-Code</button>
@@ -140,6 +141,40 @@
             <div class="status-item">
               <span class="status-label">Jobs Done:</span>
               <span class="status-value" id="jobsDone">0</span>
+            </div>
+          </div>
+
+          <!-- Position Display (LaserGRBL style) -->
+          <div class="position-display">
+            <h3>📍 Current Position</h3>
+            <div class="position-coords">
+              <div class="coord-item">
+                <span class="coord-label">X:</span>
+                <span class="coord-value" id="posX">0.000</span>
+                <span class="coord-unit">mm</span>
+              </div>
+              <div class="coord-item">
+                <span class="coord-label">Y:</span>
+                <span class="coord-value" id="posY">0.000</span>
+                <span class="coord-unit">mm</span>
+              </div>
+              <div class="coord-item">
+                <span class="coord-label">Z:</span>
+                <span class="coord-value" id="posZ">0.000</span>
+                <span class="coord-unit">mm</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Engraving Progress -->
+          <div class="progress-section" id="progressSection" style="display: none;">
+            <h3>⏳ Engraving Progress</h3>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="progressFill" style="width: 0%;"></div>
+              <span class="progress-text" id="progressPercent">0%</span>
+            </div>
+            <div class="progress-info">
+              <span id="progressCommands">0 / 0 commands</span>
             </div>
           </div>
         </div>
@@ -219,6 +254,51 @@
       consoleEl.appendChild(logEntry);
       consoleEl.scrollTop = consoleEl.scrollHeight;
     }
+
+    // Update position display (LaserGRBL style)
+    function updatePosition(position) {
+      document.getElementById('posX').textContent = position.x.toFixed(3);
+      document.getElementById('posY').textContent = position.y.toFixed(3);
+      document.getElementById('posZ').textContent = position.z.toFixed(3);
+    }
+
+    // Update engraving progress
+    function updateProgress(progress) {
+      const progressSection = document.getElementById('progressSection');
+      const progressFill = document.getElementById('progressFill');
+      const progressPercent = document.getElementById('progressPercent');
+      const progressCommands = document.getElementById('progressCommands');
+
+      // Show progress section when engraving starts
+      if (progress.total > 0) {
+        progressSection.style.display = 'block';
+        progressFill.style.width = `${progress.percentage}%`;
+        progressPercent.textContent = `${progress.percentage}%`;
+        progressCommands.textContent = `${progress.completed} / ${progress.total} commands`;
+      }
+
+      // Hide when complete
+      if (progress.percentage >= 100) {
+        setTimeout(() => {
+          progressSection.style.display = 'none';
+        }, 2000);
+      }
+    }
+
+    // Listen for position updates from main process
+    ipcRenderer.on('position-update', (event, position) => {
+      updatePosition(position);
+    });
+
+    // Listen for progress updates from main process
+    ipcRenderer.on('progress-update', (event, progress) => {
+      updateProgress(progress);
+    });
+
+    // Listen for status updates from main process
+    ipcRenderer.on('status-update', (event, status) => {
+      document.getElementById('machineStatus').textContent = status;
+    });
 
     // Update connection UI
     function updateConnectionUI(connected) {

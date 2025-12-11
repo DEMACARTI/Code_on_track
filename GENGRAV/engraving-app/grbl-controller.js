@@ -14,11 +14,22 @@ class GRBLController {
     this.isProcessing = false;
     this.currentStatus = 'Idle';
     this.onStatusUpdate = null;
-    
+
     // Position tracking (home is always origin 0,0,0)
     this.homePosition = { x: 0, y: 0, z: 0 };
     this.currentPosition = { x: 0, y: 0, z: 0 };
-    
+
+    // Callbacks for UI updates (LaserGRBL style)
+    this.onPositionUpdate = null;  // Called when position changes
+    this.onProgressUpdate = null;  // Called during engraving with progress %
+
+    // Position polling interval
+    this.positionPollInterval = null;
+
+    // Engraving progress tracking
+    this.totalCommands = 0;
+    this.completedCommands = 0;
+
     // Initialize database client with error handling
     try {
       this.dbClient = new DatabaseClient();
@@ -26,12 +37,12 @@ class GRBLController {
       console.error('Database client init failed:', err.message);
       this.dbClient = null;
     }
-    
+
     this.gcodeGenerator = new GCodeGenerator();
     this.currentJobId = null;
     this.isEngraving = false;
     this.stopRequested = false;
-    
+
     // Command response tracking
     this.pendingCommands = [];
     this.commandResolvers = new Map();
@@ -41,7 +52,7 @@ class GRBLController {
   async listPorts() {
     try {
       const ports = await SerialPort.list();
-      return ports.filter(port => 
+      return ports.filter(port =>
         port.manufacturer?.toLowerCase().includes('arduino') ||
         port.path.includes('usbserial') ||
         port.path.includes('usbmodem') ||
@@ -72,7 +83,7 @@ class GRBLController {
         this.port.on('open', () => {
           console.log('Serial port opened');
           this.isConnected = true;
-          
+
           // Wait for GRBL initialization
           setTimeout(() => {
             this.sendCommand('\r\n\r\n'); // Wake up GRBL
@@ -140,13 +151,24 @@ class GRBLController {
     });
   }
 
-  // Handle GRBL responses
+  // Handle GRBL responses (LaserGRBL style parsing)
   handleResponse(data) {
     const response = data.trim();
-    
+
     if (response === 'ok') {
       console.log('Command acknowledged');
-      
+
+      // Track progress
+      this.completedCommands++;
+      if (this.totalCommands > 0 && this.onProgressUpdate) {
+        const progress = Math.round((this.completedCommands / this.totalCommands) * 100);
+        this.onProgressUpdate({
+          completed: this.completedCommands,
+          total: this.totalCommands,
+          percentage: progress
+        });
+      }
+
       // Resolve pending command
       if (this.pendingCommands.length > 0) {
         const commandId = this.pendingCommands.shift();
@@ -157,12 +179,12 @@ class GRBLController {
           resolver.resolve(true);
         }
       }
-      
+
       this.processNextCommand();
     } else if (response.startsWith('error:')) {
       console.error('GRBL Error:', response);
       this.updateStatus('Error: ' + response);
-      
+
       // Reject pending command
       if (this.pendingCommands.length > 0) {
         const commandId = this.pendingCommands.shift();
@@ -174,16 +196,83 @@ class GRBLController {
         }
       }
     } else if (response.startsWith('<') && response.endsWith('>')) {
-      // Status report
-      const status = response.slice(1, -1).split('|')[0];
-      this.currentStatus = status;
-      this.updateStatus(status);
+      // Parse GRBL status report: <Idle|MPos:0.000,0.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+      this.parseStatusReport(response);
     } else if (response.startsWith('Grbl')) {
       console.log('GRBL Version:', response);
       this.updateStatus('Ready');
     } else if (response.startsWith('ALARM:')) {
       console.error('GRBL Alarm:', response);
       this.updateStatus('ALARM: ' + response);
+    }
+  }
+
+  // Parse GRBL 1.1 status report (LaserGRBL style)
+  parseStatusReport(response) {
+    // Format: <Status|MPos:X,Y,Z|FS:Feed,Speed|...>
+    const content = response.slice(1, -1);  // Remove < and >
+    const parts = content.split('|');
+
+    // First part is always the status
+    const status = parts[0];
+    this.currentStatus = status;
+    this.updateStatus(status);
+
+    // Parse machine position (MPos:X,Y,Z)
+    const mposPart = parts.find(p => p.startsWith('MPos:'));
+    if (mposPart) {
+      const coords = mposPart.substring(5).split(',').map(parseFloat);
+      if (coords.length >= 2) {
+        this.currentPosition = {
+          x: coords[0] || 0,
+          y: coords[1] || 0,
+          z: coords[2] || 0
+        };
+
+        // Notify UI of position change
+        if (this.onPositionUpdate) {
+          this.onPositionUpdate(this.currentPosition);
+        }
+      }
+    }
+
+    // Parse work position if MPos not available (WPos:X,Y,Z)
+    if (!mposPart) {
+      const wposPart = parts.find(p => p.startsWith('WPos:'));
+      if (wposPart) {
+        const coords = wposPart.substring(5).split(',').map(parseFloat);
+        if (coords.length >= 2) {
+          this.currentPosition = {
+            x: coords[0] || 0,
+            y: coords[1] || 0,
+            z: coords[2] || 0
+          };
+
+          if (this.onPositionUpdate) {
+            this.onPositionUpdate(this.currentPosition);
+          }
+        }
+      }
+    }
+  }
+
+  // Start polling position (call during engraving for real-time updates)
+  startPositionPolling(intervalMs = 250) {
+    this.stopPositionPolling();  // Clear any existing interval
+    this.positionPollInterval = setInterval(() => {
+      if (this.isConnected && this.port) {
+        this.port.write('?\n');  // Request status report
+      }
+    }, intervalMs);
+    console.log(`Position polling started (${intervalMs}ms interval)`);
+  }
+
+  // Stop polling position
+  stopPositionPolling() {
+    if (this.positionPollInterval) {
+      clearInterval(this.positionPollInterval);
+      this.positionPollInterval = null;
+      console.log('Position polling stopped');
     }
   }
 
@@ -206,32 +295,65 @@ class GRBLController {
     await this.sendCommand(command);
   }
 
-  // Set current position as home (0,0,0)
-  // This sets the current position as the origin without moving the machine
+  // Set current position as home (0,0,0) and save it with G28.1
+  // Uses soft homing since limit switches are not working
   async homeMachine() {
     this.updateStatus('Setting home position...');
+
     // G92 sets the current position as the specified coordinates
     // This makes wherever the machine currently is become (0,0,0)
     await this.sendCommand('G92 X0 Y0 Z0');
+
+    // G28.1 saves current position as the G28 home position
+    // This allows us to return here later with G28
+    await this.sendCommand('G28.1');
+
     this.homePosition = { x: 0, y: 0, z: 0 };
     this.currentPosition = { x: 0, y: 0, z: 0 };
+
+    // Notify UI of position update
+    if (this.onPositionUpdate) {
+      this.onPositionUpdate(this.currentPosition);
+    }
+
     this.updateStatus('Home position set');
-    console.log('Home position set at current location');
+    console.log('Home position set at current location (saved with G28.1)');
   }
 
-  // Go to home position (0,0,0)
+  // Go to home position using G28 (returns to saved position)
   async goToHome() {
     this.updateStatus('Moving to home...');
-    await this.sendCommand('G0 X0 Y0 Z0');
+
+    // G28 moves to the position saved by G28.1
+    // This is faster and more reliable than G0 X0 Y0
+    await this.sendCommand('G28');
+
     this.currentPosition = { x: 0, y: 0, z: 0 };
+
+    // Request status to confirm position
+    await this.sendCommand('?');
+
     this.updateStatus('At home position');
+  }
+
+  // Get current position (returns last known position)
+  getCurrentPosition() {
+    return { ...this.currentPosition };
+  }
+
+  // Request current position from GRBL
+  async requestPosition() {
+    if (this.isConnected && this.port) {
+      await this.sendCommand('?');
+    }
+    return this.currentPosition;
   }
 
   // Clamp coordinates to prevent negative values (stay within work area)
   clampCoordinates(x, y, z = 0) {
     const workAreaX = parseInt(process.env.ENGRAVE_WORK_AREA_X) || 150;
     const workAreaY = parseInt(process.env.ENGRAVE_WORK_AREA_Y) || 150;
-    
+
     return {
       x: Math.max(0, Math.min(x, workAreaX)),
       y: Math.max(0, Math.min(y, workAreaY)),
@@ -261,7 +383,7 @@ class GRBLController {
   async engraveLine(x1, y1, x2, y2, power = 100, feedRate = 500) {
     const start = this.clampCoordinates(x1, y1);
     const end = this.clampCoordinates(x2, y2);
-    
+
     this.updateStatus('Engraving...');
     await this.queueCommand(`G0 X${start.x} Y${start.y}`); // Move to start
     await this.queueCommand(`M3 S${power}`); // Laser on
@@ -272,16 +394,16 @@ class GRBLController {
   // Engrave QR code pattern
   async engraveQRCode(qrData, size = 30, power = 100) {
     this.updateStatus('Engraving QR Code...');
-    
+
     // Simple QR code engraving - engrave black modules
     const moduleSize = size / qrData.length;
-    
+
     for (let row = 0; row < qrData.length; row++) {
       for (let col = 0; col < qrData[row].length; col++) {
         if (qrData[row][col] === 1) { // Black module
           const x = col * moduleSize;
           const y = row * moduleSize;
-          
+
           // Engrave a filled square
           await this.queueCommand(`G0 X${x} Y${y}`);
           await this.queueCommand(`M3 S${power}`);
@@ -293,14 +415,14 @@ class GRBLController {
         }
       }
     }
-    
+
     this.updateStatus('Engraving Complete');
   }
 
   // Test engraving - simple square
   async testEngrave() {
     this.updateStatus('Test Engraving...');
-    
+
     // Engrave a 10mm x 10mm square
     await this.queueCommand('G0 X0 Y0'); // Move to origin
     await this.queueCommand('M3 S100'); // Laser on at 10% power
@@ -310,7 +432,7 @@ class GRBLController {
     await this.queueCommand('G1 X0 Y0 F500'); // Line 4
     await this.queueCommand('M5'); // Laser off
     await this.queueCommand('G0 X0 Y0'); // Return to origin
-    
+
     this.updateStatus('Test Complete');
   }
 
@@ -360,40 +482,40 @@ class GRBLController {
       this.currentJobId = jobId;
       this.isEngraving = true;
       this.stopRequested = false;
-      
+
       await this.dbClient.updateEngravingJobStatus(jobId, 'IN_PROGRESS', 'Starting engraving');
-      
+
       const job = await this.dbClient.getEngravingJob(jobId);
       if (!job) {
         throw new Error('Job not found');
       }
 
       this.updateStatus(`Engraving job ${jobId}...`);
-      
+
       // Get the item to find the QR image URL
       const item = await this.dbClient.getItemByUid(job.item_uid);
       const qrImageUrl = job.svg_url || (item && item.qr_image_url);
-      
+
       if (qrImageUrl) {
         // Download and convert SVG to G-code
         this.updateStatus('Generating G-code from QR image...');
         try {
           const gcode = await this.gcodeGenerator.generateFromURL(qrImageUrl);
-          
+
           // Execute the G-code
           this.updateStatus('Executing G-code...');
           await this.executeGCode(gcode);
-          
+
           // Mark as completed
           await this.completeEngravingJob(jobId, true);
         } catch (gcodeError) {
           // Fall back to test pattern if G-code generation fails
           console.warn('G-code generation failed, using test pattern:', gcodeError.message);
           this.updateStatus('Using test pattern (SVG parse failed)...');
-          
+
           const testGcode = this.gcodeGenerator.generateTestSquare(20);
           await this.executeGCode(testGcode);
-          
+
           await this.completeEngravingJob(jobId, true, 'Completed with test pattern');
         }
       } else {
@@ -401,15 +523,15 @@ class GRBLController {
         this.updateStatus('No QR image URL - using test pattern');
         const testGcode = this.gcodeGenerator.generateTestSquare(20);
         await this.executeGCode(testGcode);
-        
+
         await this.completeEngravingJob(jobId, true, 'Completed with test pattern (no SVG URL)');
       }
-      
+
       return { success: true, job };
     } catch (error) {
       console.error('Error starting engraving job:', error);
       this.isEngraving = false;
-      
+
       if (this.currentJobId) {
         await this.dbClient.updateEngravingJobStatus(this.currentJobId, 'FAILED', error.message);
         await this.dbClient.incrementJobAttempts(this.currentJobId);
@@ -419,32 +541,46 @@ class GRBLController {
   }
 
   /**
-   * Execute G-code commands sequentially
+   * Execute G-code commands sequentially with real-time progress tracking
    */
   async executeGCode(gcode) {
     const lines = gcode.split('\n')
       .map(line => line.trim())
       .filter(line => line && !line.startsWith(';'));  // Remove empty lines and comments
 
+    // Initialize progress tracking
+    this.totalCommands = lines.length;
+    this.completedCommands = 0;
+
     this.updateStatus(`Executing ${lines.length} G-code commands...`);
 
-    for (let i = 0; i < lines.length; i++) {
-      if (this.stopRequested) {
-        this.updateStatus('Engraving stopped by user');
-        throw new Error('Engraving stopped by user');
+    // Start position polling for real-time position updates
+    this.startPositionPolling(250);
+
+    try {
+      for (let i = 0; i < lines.length; i++) {
+        if (this.stopRequested) {
+          this.updateStatus('Engraving stopped by user');
+          throw new Error('Engraving stopped by user');
+        }
+
+        const line = lines[i];
+        await this.sendCommandAndWait(line);
+
+        // Update progress every 10 commands (in addition to the callback)
+        if (i % 10 === 0) {
+          const progress = Math.round((i / lines.length) * 100);
+          this.updateStatus(`Engraving: ${progress}% (${i}/${lines.length})`);
+        }
       }
 
-      const line = lines[i];
-      await this.sendCommandAndWait(line);
-      
-      // Update progress every 10 commands
-      if (i % 10 === 0) {
-        const progress = Math.round((i / lines.length) * 100);
-        this.updateStatus(`Engraving: ${progress}% (${i}/${lines.length})`);
-      }
+      this.updateStatus('G-code execution complete');
+    } finally {
+      // Always stop position polling when done
+      this.stopPositionPolling();
+      this.totalCommands = 0;
+      this.completedCommands = 0;
     }
-
-    this.updateStatus('G-code execution complete');
   }
 
   /**
@@ -455,7 +591,7 @@ class GRBLController {
     if (this.stopRequested) {
       throw new Error('Engraving stopped by user');
     }
-    
+
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error(`Command timeout: ${command}`));
@@ -480,16 +616,16 @@ class GRBLController {
     try {
       const status = success ? 'COMPLETED' : 'FAILED';
       const job = await this.dbClient.getEngravingJob(jobId);
-      
+
       await this.dbClient.updateEngravingJobStatus(jobId, status, errorMessage);
-      
+
       if (!success) {
         await this.dbClient.incrementJobAttempts(jobId);
       } else if (job && job.item_uid) {
         // Update item status to 'engraved' on success
         await this.dbClient.updateItemStatus(job.item_uid, 'engraved');
       }
-      
+
       this.currentJobId = null;
       this.isEngraving = false;
       this.updateStatus(success ? 'Job completed' : 'Job failed');
@@ -508,42 +644,42 @@ class GRBLController {
 
       const jobs = await this.getPendingJobs();
       const jobsToProcess = jobs.slice(0, batchSize);
-      
+
       if (jobsToProcess.length === 0) {
         this.updateStatus('No pending jobs in queue');
         return { success: true, processedJobs: 0, message: 'No pending jobs' };
       }
-      
+
       this.updateStatus(`Starting batch of ${jobsToProcess.length} jobs`);
       this.stopRequested = false;
-      
+
       let successCount = 0;
       let failCount = 0;
-      
+
       for (let i = 0; i < jobsToProcess.length; i++) {
         if (this.stopRequested) {
           this.updateStatus('Batch stopped by user');
           break;
         }
-        
+
         const job = jobsToProcess[i];
         this.updateStatus(`Processing job ${i + 1}/${jobsToProcess.length} (ID: ${job.id})`);
-        
+
         const result = await this.startEngravingJob(job.id);
-        
+
         if (result.success) {
           successCount++;
         } else {
           failCount++;
         }
-        
+
         // Delay between jobs (except for the last one)
         if (i < jobsToProcess.length - 1 && delayBetweenJobs > 0 && !this.stopRequested) {
           this.updateStatus(`Waiting ${delayBetweenJobs / 1000}s before next job...`);
           await new Promise(resolve => setTimeout(resolve, delayBetweenJobs));
         }
       }
-      
+
       this.updateStatus(`Batch complete: ${successCount} success, ${failCount} failed`);
       return { success: true, processedJobs: successCount, failedJobs: failCount };
     } catch (error) {
@@ -596,53 +732,53 @@ class GRBLController {
 
       // Fetch all items in the batch (by lot_number)
       const items = await this.dbClient.getItemsByLotNumber(batchId.toString());
-      
+
       if (!items || items.length === 0) {
         return { success: false, error: `No items found with lot number: ${batchId}` };
       }
 
       this.updateStatus(`Starting batch ${batchId} with ${items.length} items, ${delay}s delay`);
       this.stopRequested = false;
-      
+
       let successCount = 0;
       let failCount = 0;
-      
+
       // Process each item in the batch
       for (let i = 0; i < items.length; i++) {
         if (this.stopRequested) {
           this.updateStatus('Batch stopped by user');
           break;
         }
-        
+
         const item = items[i];
         this.updateStatus(`Engraving item ${i + 1}/${items.length}: ${item.uid}`);
-        
+
         // Create engraving job if not exists
         let job = await this.dbClient.getEngravingJobByItemUid(item.uid);
-        
+
         if (!job) {
           job = await this.dbClient.createEngravingJob({
             item_uid: item.uid,
             svg_url: item.qr_image_url || ''
           });
         }
-        
+
         // Start engraving
         const result = await this.startEngravingJob(job.id);
-        
+
         if (result.success) {
           successCount++;
         } else {
           failCount++;
         }
-        
+
         // Delay between items (except for the last one)
         if (i < items.length - 1 && delay > 0 && !this.stopRequested) {
           this.updateStatus(`Waiting ${delay}s before next item...`);
           await new Promise(resolve => setTimeout(resolve, delay * 1000));
         }
       }
-      
+
       this.updateStatus(`Batch ${batchId} complete: ${successCount} success, ${failCount} failed`);
       return { success: true, processedItems: successCount, failedItems: failCount };
     } catch (error) {
@@ -659,16 +795,16 @@ class GRBLController {
 
       // Find item by UID
       const item = await this.dbClient.getItemByQRCode(qrCodeId);
-      
+
       if (!item) {
         return { success: false, error: `Item not found with UID: ${qrCodeId}` };
       }
 
       this.updateStatus(`Engraving single item: ${qrCodeId}`);
-      
+
       // Check if engraving job already exists
       let job = await this.dbClient.getEngravingJobByItemUid(item.uid);
-      
+
       if (!job) {
         // Create new engraving job
         job = await this.dbClient.createEngravingJob({
@@ -682,10 +818,10 @@ class GRBLController {
           svg_url: item.qr_image_url || ''
         });
       }
-      
+
       // Start engraving
       const result = await this.startEngravingJob(job.id);
-      
+
       if (result.success) {
         this.updateStatus('Single item engraving complete');
         return { success: true, qrCode: qrCodeId, jobId: job.id };
@@ -701,11 +837,11 @@ class GRBLController {
   async stopEngraving() {
     try {
       this.stopRequested = true;
-      
+
       // Clear the command queue immediately
       this.commandQueue = [];
       this.isProcessing = false;
-      
+
       // Clear all pending command resolvers
       this.pendingCommands = [];
       for (const [commandId, resolver] of this.commandResolvers.entries()) {
@@ -713,7 +849,7 @@ class GRBLController {
         resolver.reject(new Error('Engraving stopped by user'));
       }
       this.commandResolvers.clear();
-      
+
       // Send emergency stop to GRBL (Feed Hold)
       if (this.isConnected && this.port) {
         await this.sendCommand('!'); // Feed hold - pause immediately
@@ -721,17 +857,17 @@ class GRBLController {
         await this.sendCommand('M5'); // Turn off laser immediately
         await this.sendCommand('\x18'); // Soft reset to clear GRBL buffer
       }
-      
+
       // Stop current job
       if (this.currentJobId) {
         this.completeEngravingJob(this.currentJobId, false, 'Stopped by operator');
         this.currentJobId = null;
       }
-      
+
       this.updateStatus('Engraving stopped');
       this.isEngraving = false;
       console.log('Engraving stopped - queue cleared, laser off, GRBL reset');
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error stopping engraving:', error);
@@ -768,7 +904,7 @@ class GRBLController {
         batch_id: batchId || null,
         status: 'PENDING'
       });
-      
+
       return {
         status: 'success',
         qr_code: item.qr_code,

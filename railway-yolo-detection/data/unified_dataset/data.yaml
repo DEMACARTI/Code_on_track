@@ -1,0 +1,11 @@
+# Unified Railway Component Detection Dataset
+path: /Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/unified_dataset
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 3
+names:
+  0: erc_good
+  1: erc_missing
+  2: sleeper

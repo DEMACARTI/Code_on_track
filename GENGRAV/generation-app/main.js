@@ -22,14 +22,14 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
-  
+
   // Remove all keyboard shortcuts that open DevTools
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'F12' || 
-        (input.control && input.shift && input.key === 'I') ||
-        (input.meta && input.alt && input.key === 'I') ||
-        (input.control && input.shift && input.key === 'J') ||
-        (input.meta && input.alt && input.key === 'J')) {
+    if (input.key === 'F12' ||
+      (input.control && input.shift && input.key === 'I') ||
+      (input.meta && input.alt && input.key === 'I') ||
+      (input.control && input.shift && input.key === 'J') ||
+      (input.meta && input.alt && input.key === 'J')) {
       event.preventDefault();
     }
   });
@@ -64,7 +64,6 @@ ipcMain.handle('create-item', async (event, itemData) => {
 
     const quantity = itemData.quantity || 1;
     const createdItems = [];
-    const crypto = require('crypto');
     const isBatchMode = itemData.batch_mode || false;
     const batchRefId = itemData.batch_ref_id || null;
 
@@ -75,7 +74,7 @@ ipcMain.handle('create-item', async (event, itemData) => {
 
     // For batch mode, use a more efficient progress update interval
     const progressInterval = isBatchMode ? Math.max(100, Math.floor(quantity / 100)) : 10;
-    
+
     // Process in batches for better performance
     const batchSize = 100; // Process 100 items at a time
     const numBatches = Math.ceil(quantity / batchSize);
@@ -88,26 +87,29 @@ ipcMain.handle('create-item', async (event, itemData) => {
       // Generate multiple items in parallel within each batch
       for (let i = startIdx; i < endIdx; i++) {
         const itemPromise = (async () => {
-          // Generate unique hexadecimal code (8 characters)
-          const hexCode = crypto.randomBytes(4).toString('hex').toUpperCase();
-          
-          // Create unique UID with timestamp and hex code
-          const uniqueUid = `${itemData.uid}-${Date.now()}-${hexCode}`;
-          
-          // Generate QR code data
-          const qrData = JSON.stringify({
-            uid: uniqueUid,
-            component_type: itemData.component_type,
-            lot_number: itemData.lot_number,
-            vendor_id: itemData.vendor_id,
-            warranty_years: itemData.warranty_years,
-            manufacture_date: itemData.manufacture_date,
-            item_number: i + 1,
-            total_quantity: quantity,
-            hex_id: hexCode,
-            batch_ref_id: batchRefId,
-            batch_mode: isBatchMode
-          });
+          // Component type codes for backend validation
+          // 01 = ERC, 02 = LINER, 03 = PAD, 04 = SLEEPER
+          const componentTypeCodes = {
+            'ERC': '01',
+            'LINER': '02',
+            'PAD': '03',
+            'SLEEPER': '04'
+          };
+
+          // Get component code (default to '00' for unknown types)
+          const componentCode = componentTypeCodes[itemData.component_type] || '00';
+
+          // Generate unique UID: ComponentCode-MillisecondEpoch
+          // Format: XX-XXXXXXXXXXXXX (e.g., 01-1733932199123)
+          const epochTimestamp = Date.now().toString();
+          const uniqueUid = `${componentCode}-${epochTimestamp}`;
+
+          // Add small delay to ensure unique timestamps in loops
+          await new Promise(resolve => setTimeout(resolve, 1));
+
+          // QR data contains ONLY the UID - all other data is stored in database
+          // Format: ComponentCode-EpochMs (e.g., 01-1733932199123)
+          const qrData = uniqueUid;
 
           // Generate QR code as base64 (stored directly in database)
           const qrBase64 = await QRCode.toDataURL(qrData, {
@@ -155,7 +157,7 @@ ipcMain.handle('create-item', async (event, itemData) => {
 
           // Save to database
           const item = await dbClient.createItem(singleItemData);
-          
+
           // Create engraving job with batch reference
           await dbClient.createEngravingJob({
             item_uid: item.uid,

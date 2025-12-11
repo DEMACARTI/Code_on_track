@@ -33,11 +33,25 @@ function createWindow() {
 app.on('ready', () => {
   createWindow();
   grblController = new GRBLController();
-  
+
   // Set up status update callback
   grblController.onStatusUpdate = (status) => {
     if (mainWindow) {
       mainWindow.webContents.send('status-update', status);
+    }
+  };
+
+  // Set up position update callback (LaserGRBL style real-time position)
+  grblController.onPositionUpdate = (position) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('position-update', position);
+    }
+  };
+
+  // Set up progress update callback
+  grblController.onProgressUpdate = (progress) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('progress-update', progress);
     }
   };
 });
@@ -267,7 +281,7 @@ ipcMain.handle('get-all-items', async () => {
 ipcMain.handle('generate-gcode-from-base64', async (event, options) => {
   try {
     const { base64Data, size, itemUid, laserPower, feedRate } = options;
-    
+
     // Update generator settings
     grblController.gcodeGenerator.size = size || 30;
     if (laserPower !== undefined) {
@@ -277,11 +291,11 @@ ipcMain.handle('generate-gcode-from-base64', async (event, options) => {
     if (feedRate !== undefined) {
       grblController.gcodeGenerator.feedRate = feedRate;
     }
-    
+
     // Generate G-code from base64 data URL
     const gcode = grblController.gcodeGenerator.generateFromDataURL(base64Data);
     const lineCount = gcode.split('\n').filter(line => line.trim() && !line.startsWith(';')).length;
-    
+
     return { success: true, gcode, lineCount, itemUid };
   } catch (error) {
     return { success: false, error: error.message };
@@ -293,7 +307,7 @@ ipcMain.handle('execute-gcode', async (event, gcode) => {
     if (!grblController.isConnected) {
       return { success: false, error: 'Machine not connected' };
     }
-    
+
     await grblController.executeGCode(gcode);
     return { success: true };
   } catch (error) {

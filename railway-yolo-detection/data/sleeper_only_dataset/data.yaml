@@ -1,0 +1,8 @@
+# Sleeper-Only Detection Dataset
+path: /Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/sleeper_only_dataset
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 1
+names: ['sleeper']
