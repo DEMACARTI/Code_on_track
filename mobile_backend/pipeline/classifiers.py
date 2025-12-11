@@ -46,13 +46,64 @@ class ComponentClassifier:
         """
         Load the ResNet model for classification.
         
-        Note: Currently returns None as models need to be trained.
-        Replace with actual model loading when models are available.
+        Tries to load a trained PyTorch model from the models directory.
+        Falls back to rule-based logic if model not found.
         """
-        # TODO: Load trained ResNet model when available
-        # For now, classifier uses rule-based logic based on YOLO detection
-        self.model = None
-        print(f"ℹ️ ResNet classifier for {self.component_type} using fallback mode")
+        try:
+            import torch
+            import torch.nn as nn
+            from torchvision import models
+            from pathlib import Path
+            
+            # Look for trained model file
+            model_paths = [
+                Path(__file__).parent.parent.parent / 'railway-yolo-detection' / 'models' / f'{self.component_type}_classifier_best.pt',
+                Path.cwd() / 'models' / f'{self.component_type}_classifier_best.pt',
+                Path.home() / 'Code_on_track' / 'railway-yolo-detection' / 'models' / f'{self.component_type}_classifier_best.pt',
+            ]
+            
+            for model_path in model_paths:
+                if model_path.exists():
+                    # Load checkpoint
+                    checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+                    
+                    # Get class info from checkpoint
+                    if 'class_names' in checkpoint:
+                        self.classes = checkpoint['class_names']
+                    num_classes = checkpoint.get('num_classes', len(self.classes))
+                    
+                    # Create model architecture
+                    model = models.resnet50(weights=None)
+                    model.fc = nn.Sequential(
+                        nn.Dropout(0.5),
+                        nn.Linear(model.fc.in_features, 512),
+                        nn.ReLU(),
+                        nn.Dropout(0.3),
+                        nn.Linear(512, num_classes)
+                    )
+                    
+                    # Load weights
+                    model.load_state_dict(checkpoint['model_state_dict'])
+                    model.eval()
+                    
+                    self.model = model
+                    self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                    self.model.to(self.device)
+                    
+                    print(f"✅ Loaded ResNet classifier for {self.component_type} from {model_path}")
+                    print(f"   Classes: {self.classes}")
+                    return
+            
+            # Model not found
+            print(f"ℹ️ ResNet classifier for {self.component_type} using fallback mode (model not trained)")
+            self.model = None
+            
+        except ImportError:
+            print(f"ℹ️ PyTorch not available, {self.component_type} classifier using fallback mode")
+            self.model = None
+        except Exception as e:
+            print(f"⚠️ Error loading {self.component_type} classifier: {e}")
+            self.model = None
     
     def classify(self, image: Union[bytes, np.ndarray, Image.Image], 
                  detection_class: str = None) -> Dict:
