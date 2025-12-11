@@ -176,20 +176,15 @@ def get_db():
         db.close()
 
 # ============================================================================
-# VGG MODEL LOADING AND PREDICTION
-# ============================================================================
-
-# Global variable to store loaded model
-_vgg_model = None
-_class_names = ['Broken', 'Crack', 'Damaged', 'Normal', 'Rust']
-
-# ============================================================================
-# YOLO OBJECT DETECTION MODEL
+# YOLO OBJECT DETECTION MODEL (LEGACY - kept for backward compatibility)
 # ============================================================================
 
 # Global variable to store YOLO model
 _yolo_model = None
 _component_class_names = ['elastic_clip_good', 'elastic_clip_missing']
+
+# Defect class names - used by fallback classifier
+_class_names = ['Broken', 'Crack', 'Damaged', 'Normal', 'Rust']
 
 # Component descriptions for API response
 COMPONENT_DESCRIPTIONS = {
@@ -206,52 +201,8 @@ DEFECT_REMARKS = {
     'Normal': 'Component appears to be in good condition. No visible defects detected.'
 }
 
-def load_vgg_model():
-    """Load VGG model on startup"""
-    global _vgg_model
-    
-    try:
-        import tensorflow as tf
-        from pathlib import Path
-        
-        # Path to the trained model - try multiple locations
-        # Priority 1: Try best_model_initial.keras (created during training)
-        model_path = Path(__file__).parent.parent / 'railway-vgg-classification' / 'railway_defect_output' / 'best_model_initial.keras'
-        
-        if not model_path.exists():
-            # Priority 2: Alternative absolute path (local dev)
-            model_path = Path('/Users/dakshrathore/Desktop/Code_on_track/railway-vgg-classification/railway_defect_output/best_model_initial.keras')
-        
-        if not model_path.exists():
-            # Priority 3: Local best_model.keras (for Render deployment)
-            model_path = Path(__file__).parent / 'best_model.keras'
-        
-        if not model_path.exists():
-            # Priority 4: Try /opt/render paths for production
-            render_path = Path('/opt/render/project/src/mobile_backend/best_model.keras')
-            if render_path.exists():
-                model_path = render_path
-        
-        if model_path.exists():
-            print(f"Loading VGG model from: {model_path}")
-            # Load model with Keras 3
-            _vgg_model = tf.keras.models.load_model(
-                str(model_path),
-                compile=True
-            )
-            print("✅ VGG model loaded successfully!")
-            return True
-        else:
-            print(f"⚠️  Model not found at: {model_path}")
-            print("Model will need to be trained first. Run: python train_vgg_classification.py")
-            return False
-            
-    except ImportError:
-        print("⚠️  TensorFlow not installed. Install with: pip install tensorflow")
-        return False
-    except Exception as e:
-        print(f"⚠️  Error loading model: {e}")
-        return False
+# VGG model removed - now using pipeline with YOLO + ResNet
+# See /api/inspect-component for the new inspection API
 
 def load_yolo_model():
     """Load YOLO object detection model on startup"""
@@ -974,12 +925,24 @@ async def get_pipeline_status():
 # Load models on startup
 @app.on_event("startup")
 async def startup_event():
-    """Load VGG and YOLO models when server starts"""
+    """Initialize inspection pipeline when server starts"""
     print("\n" + "="*70)
     print("🚂 Railway Component Inspection Backend Starting...")
     print("="*70)
-    print("\n📦 Loading AI Models...")
-    load_vgg_model()
+    print("\n📦 Loading AI Pipeline...")
+    
+    # Initialize the new multi-model pipeline
+    if PIPELINE_AVAILABLE:
+        try:
+            pipeline = get_pipeline()
+            status = pipeline.get_status()
+            print(f"✅ Pipeline loaded: {len(status['detectors'])} detectors, {len(status['classifiers'])} classifiers")
+        except Exception as e:
+            print(f"⚠️ Pipeline initialization error: {e}")
+    else:
+        print("⚠️ Pipeline module not available")
+    
+    # Load legacy YOLO model for backward compatibility
     load_yolo_model()
     print("="*70 + "\n")
 

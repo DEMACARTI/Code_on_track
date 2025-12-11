@@ -210,4 +210,86 @@ class ApiService {
       'department': prefs.getString('department'),
     };
   }
+
+  // ============================================================================
+  // AI INSPECTION PIPELINE
+  // ============================================================================
+
+  /// Inspect a component using the multi-model AI pipeline
+  /// 1. YOLO detects component type
+  /// 2. ResNet classifies condition/defects
+  /// 
+  /// Returns inspection result with component type, condition, defects, recommendations
+  Future<Map<String, dynamic>> inspectComponent(String base64Image, {String? componentType}) async {
+    HttpClient? client;
+    try {
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 30);
+      
+      final uri = Uri.parse('$baseUrl/api/inspect-component');
+      final request = await client.postUrl(uri);
+      
+      request.headers.contentType = ContentType.json;
+      request.headers.set('Accept', 'application/json');
+      
+      final body = jsonEncode({
+        'image_base64': base64Image,
+        if (componentType != null) 'component_type': componentType,
+      });
+      request.write(body);
+      
+      final response = await request.close().timeout(const Duration(seconds: 30));
+      final responseBody = await response.transform(utf8.decoder).join();
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(responseBody);
+        return {
+          'success': data['success'] ?? false,
+          'component_type': data['component_type'],
+          'component_class': data['component_class'],
+          'condition': data['condition'],
+          'defects': data['defects'] ?? [],
+          'recommendations': data['recommendations'] ?? [],
+          'detection_confidence': data['detection_confidence'],
+          'error': data['error'],
+        };
+      } else {
+        return {
+          'success': false,
+          'error': 'Server error: ${response.statusCode}',
+        };
+      }
+    } on TimeoutException {
+      return {'success': false, 'error': 'Request timeout - please try again'};
+    } on SocketException catch (e) {
+      return {'success': false, 'error': 'Cannot connect to server: $e'};
+    } catch (e) {
+      return {'success': false, 'error': 'Inspection error: $e'};
+    } finally {
+      client?.close();
+    }
+  }
+
+  /// Get pipeline status - check which models are loaded
+  Future<Map<String, dynamic>> getPipelineStatus() async {
+    HttpClient? client;
+    try {
+      client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 10);
+      
+      final request = await client.getUrl(Uri.parse('$baseUrl/api/pipeline-status'));
+      final response = await request.close();
+      final responseBody = await response.transform(utf8.decoder).join();
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(responseBody);
+      } else {
+        return {'available': false, 'error': 'Server error'};
+      }
+    } catch (e) {
+      return {'available': false, 'error': 'Connection error: $e'};
+    } finally {
+      client?.close();
+    }
+  }
 }
