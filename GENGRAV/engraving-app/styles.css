@@ -575,18 +575,20 @@ button:disabled {
 .batch-stats {
   background: var(--primary-600);
   border-left: 3px solid var(--accent-teal);
-  padding: 12px;
+  padding: 10px 14px;
   border-radius: var(--radius-sm);
-  margin-top: 12px;
+  margin: 8px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
 }
 
-.batch-stats .stats-line {
-  margin: 6px 0;
-  font-size: 0.85rem;
+.batch-stats span {
   color: var(--text-secondary);
 }
 
-.batch-stats .stats-line strong {
+.batch-stats strong {
   color: var(--text-primary);
 }
 

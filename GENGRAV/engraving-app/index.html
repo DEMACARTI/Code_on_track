@@ -1,10 +1,17 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <title>Laser Engraving Control - GENGRAV</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <div class="container">
     <div class="header">
@@ -16,10 +23,11 @@
     </div>
 
     <div class="content">
-      <!-- Left Panel: Connection & Control -->
+      <!-- LEFT PANEL: Controls & Options -->
       <div class="left-panel">
+        <!-- Connection Section -->
         <div class="panel-section">
-          <h2>Connection</h2>
+          <h2>🔌 Connection</h2>
           <div class="form-group">
             <label for="portSelect">Arduino Port</label>
             <select id="portSelect">
@@ -27,223 +35,143 @@
             </select>
           </div>
           <div class="button-group">
-            <button id="refreshPortsBtn" class="btn-secondary">Refresh Ports</button>
+            <button id="refreshPortsBtn" class="btn-secondary">Refresh</button>
             <button id="connectBtn" class="btn-primary">Connect</button>
             <button id="disconnectBtn" class="btn-danger" disabled>Disconnect</button>
           </div>
         </div>
 
+        <!-- Machine Control Section -->
         <div class="panel-section">
-          <h2>Machine Control</h2>
+          <h2>⚙️ Machine Control</h2>
           <div class="button-grid">
             <button id="setHomeBtn" class="btn-control" disabled>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                  d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" />
               </svg>
               Set Home
             </button>
             <button id="goHomeBtn" class="btn-control" disabled>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
               </svg>
-              Go to Home
+              Go Home
             </button>
             <button id="resetBtn" class="btn-control" disabled>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/>
-                <path d="M12 8v4l2 2"/>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                <path d="M12 8v4l2 2" />
               </svg>
               Reset
             </button>
+            <button id="testEngraveBtn" class="btn-success" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+              </svg>
+              Test 10mm
+            </button>
           </div>
-          <p class="help-text" style="font-size: 12px; color: #666; margin-top: 10px;">
-            <strong>Set Home:</strong> Sets current position as (0,0) origin<br/>
-            <strong>Go to Home:</strong> Moves machine back to (0,0)
-          </p>
         </div>
 
+        <!-- Laser Control Section -->
         <div class="panel-section">
-          <h2>Laser Control (0.5W 12V)</h2>
+          <h2>💡 Laser Control</h2>
           <div class="form-group">
-            <label for="laserPower">Laser Power: <span id="powerValue">100</span>% <small>(S<span id="sValue">1000</span>)</small></label>
+            <label>Power: <strong id="powerValue">100</strong>% (S<span id="sValue">1000</span>)</label>
             <input type="range" id="laserPower" min="0" max="100" value="100" class="slider">
           </div>
           <div class="button-group">
-            <button id="laserOnBtn" class="btn-warning" disabled>Laser ON</button>
+            <button id="laserOnBtn" class="btn-warning" disabled>⚡ Laser ON</button>
             <button id="laserOffBtn" class="btn-secondary" disabled>Laser OFF</button>
           </div>
         </div>
 
+        <!-- QR Preview & Settings -->
         <div class="panel-section">
-          <h2>Testing</h2>
-          <button id="testEngraveBtn" class="btn-success" disabled>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-            </svg>
-            Test Engrave (10mm Square)
-          </button>
-        </div>
-
-        <div class="panel-section">
-          <h2>QR Code Preview</h2>
-          <div class="qr-preview-container">
-            <div id="qrPreview" class="qr-preview">
-              <p class="placeholder-text">Select a QR code to preview</p>
-            </div>
+          <h2>📐 Engraving Settings</h2>
+          <div id="qrPreview" class="qr-preview">
+            <p class="placeholder-text">Select a QR code to preview</p>
           </div>
           <div class="form-group">
-            <label>Work Area: <strong>150mm × 150mm</strong></label>
-          </div>
-          <div class="form-group">
-            <label for="qrSize">QR Code Size (mm)</label>
-            <input type="number" id="qrSize" value="30" min="10" max="150" step="5">
+            <label for="qrSize">QR Size: <strong id="qrSizeValue">30</strong>mm</label>
+            <input type="range" id="qrSize" min="10" max="80" value="30" step="5" class="slider">
           </div>
           <div class="button-group">
             <button id="generateGcodeBtn" class="btn-primary" disabled>Generate G-Code</button>
-            <button id="previewGcodeBtn" class="btn-secondary" disabled>Preview G-Code</button>
+            <button id="previewGcodeBtn" class="btn-secondary" disabled>Preview</button>
           </div>
           <div id="gcodeStatus" class="gcode-status"></div>
         </div>
 
+        <!-- Engraving Controls -->
         <div class="panel-section">
-          <h2>Operator Instructions</h2>
-          <div class="instruction-panel" id="instructionPanel">
-            <div class="instruction-step" id="step1" style="display: block;">
-              <h3>Step 1: Prepare the Board</h3>
-              <ul>
-                <li>✓ Clean the board surface with isopropyl alcohol</li>
-                <li>✓ Ensure the board is dry and free of debris</li>
-                <li>✓ Check that the laser lens is clean</li>
-              </ul>
-              <button id="step1DoneBtn" class="btn-success">Ready - Next Step</button>
-            </div>
-            <div class="instruction-step" id="step2" style="display: none;">
-              <h3>Step 2: Position the Board</h3>
-              <ul>
-                <li>✓ Place the board in the center of the engraving bed</li>
-                <li>✓ Align the board with the laser head at (0,0)</li>
-                <li>✓ Secure the board with clamps if needed</li>
-                <li>✓ Ensure the board is flat and level</li>
-              </ul>
-              <button id="step2BackBtn" class="btn-secondary">← Back</button>
-              <button id="step2DoneBtn" class="btn-success">Ready - Next Step</button>
-            </div>
-            <div class="instruction-step" id="step3" style="display: none;">
-              <h3>Step 3: Focus the Laser</h3>
-              <ul>
-                <li>✓ Move the laser head to the center of the board</li>
-                <li>✓ Adjust the Z-axis until the laser is in focus (~3-5mm from board)</li>
-                <li>✓ Use the focus gauge if available</li>
-                <li>✓ Test the focus with a low-power pulse</li>
-              </ul>
-              <button id="step3BackBtn" class="btn-secondary">← Back</button>
-              <button id="step3DoneBtn" class="btn-success">Ready - Start Engraving</button>
-            </div>
-            <div class="instruction-step" id="stepEngraving" style="display: none;">
-              <h3>✓ Ready to Engrave</h3>
-              <p>All pre-engraving checks completed. Configure engraving parameters below.</p>
-              <button id="stepResetBtn" class="btn-secondary">Reset Instructions</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel-section">
-          <h2>Engraving Process</h2>
-          <div class="form-group">
-            <label for="qrSelection">Select QR Code or Batch</label>
-            <select id="qrSelection">
-              <option value="">Select...</option>
-              <option value="batch">Batch</option>
-              <option value="single">Single QR Code</option>
-            </select>
-          </div>
-          <div class="form-group" id="batchControls" style="display: none;">
-            <label for="batchId">Batch ID</label>
-            <input type="number" id="batchId" placeholder="Enter Batch ID">
-            <label for="timeDelay">Time Delay (seconds)</label>
-            <input type="number" id="timeDelay" placeholder="Enter Time Delay">
-          </div>
-          <div class="form-group" id="singleControls" style="display: none;">
-            <label for="qrCodeId">QR Code ID</label>
-            <input type="text" id="qrCodeId" placeholder="Enter QR Code ID">
-          </div>
+          <h2>▶️ Engraving</h2>
           <div class="button-group">
-            <button id="startEngravingBtn" class="btn-primary" disabled>Start Engraving</button>
-            <button id="stopEngravingBtn" class="btn-danger" disabled>Stop Engraving</button>
-          </div>
-        </div>
-
-        <div class="panel-section">
-          <h2>Generate QR Code</h2>
-          <div class="form-group">
-            <label for="qrData">QR Code Data</label>
-            <input type="text" id="qrData" placeholder="Enter data for QR code">
-          </div>
-          <div class="form-group">
-            <label for="qrBatchId">Batch ID (optional)</label>
-            <input type="number" id="qrBatchId" placeholder="Enter Batch ID">
-          </div>
-          <div class="button-group">
-            <button id="generateQRBtn" class="btn-primary">Generate QR Code</button>
+            <button id="startEngravingBtn" class="btn-success" disabled style="flex: 1;">
+              ▶ Start Engraving
+            </button>
+            <button id="stopEngravingBtn" class="btn-danger" disabled>
+              ■ Stop
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Right Panel: Console & Queue -->
+      <!-- RIGHT PANEL: Console, Jobs & QR Files -->
       <div class="right-panel">
+        <!-- Status Dashboard -->
         <div class="panel-section">
-          <h2>Status</h2>
+          <h2>📊 Status Dashboard</h2>
           <div class="status-display">
             <div class="status-item">
-              <span class="status-label">Machine Status:</span>
+              <span class="status-label">Machine:</span>
               <span class="status-value" id="machineStatus">Idle</span>
             </div>
             <div class="status-item">
-              <span class="status-label">Laser State:</span>
+              <span class="status-label">Laser:</span>
               <span class="status-value" id="laserState">OFF</span>
             </div>
             <div class="status-item">
               <span class="status-label">Current Job:</span>
               <span class="status-value" id="currentJob">None</span>
             </div>
+            <div class="status-item">
+              <span class="status-label">Jobs Done:</span>
+              <span class="status-value" id="jobsDone">0</span>
+            </div>
           </div>
         </div>
 
+        <!-- QR Files from Directory -->
         <div class="panel-section">
-          <h2>Batch Selection</h2>
+          <h2>📁 QR Codes (from Database)</h2>
           <div class="form-group">
             <label for="batchFilter">Filter by Batch</label>
             <select id="batchFilter">
-              <option value="">All Items (No Filter)</option>
+              <option value="">All Items</option>
             </select>
           </div>
           <div id="batchStats" class="batch-stats" style="display: none;">
-            <p class="stats-line"><strong>Total:</strong> <span id="batchTotal">0</span> QR codes</p>
-            <p class="stats-line"><strong>Engraved:</strong> <span id="batchEngraved">0</span></p>
-            <p class="stats-line"><strong>Pending:</strong> <span id="batchPending">0</span></p>
+            <span><strong>Total:</strong> <span id="batchTotal">0</span></span>
+            <span><strong>Engraved:</strong> <span id="batchEngraved">0</span></span>
+            <span><strong>Pending:</strong> <span id="batchPending">0</span></span>
           </div>
-          <button id="refreshBatchesBtn" class="btn-secondary btn-sm">Refresh Batches</button>
-        </div>
-
-        <div class="panel-section">
-          <h2>Available Items</h2>
           <div id="itemsList" class="items-list">
             <div class="empty-state-small">
-              <p>Loading items...</p>
+              <p>Loading QR codes...</p>
             </div>
           </div>
-          <button id="refreshItemsBtn" class="btn-secondary btn-sm">Refresh Items</button>
+          <div class="button-group">
+            <button id="refreshBatchesBtn" class="btn-secondary btn-sm">Refresh Batches</button>
+            <button id="refreshItemsBtn" class="btn-secondary btn-sm">Refresh Items</button>
+          </div>
         </div>
 
+        <!-- Engraving Queue -->
         <div class="panel-section">
-          <h2>Console Output</h2>
-          <div id="console" class="console"></div>
-          <button id="clearConsoleBtn" class="btn-secondary btn-sm">Clear Console</button>
-        </div>
-
-        <div class="panel-section">
-          <h2>Engraving Queue</h2>
+          <h2>📋 Engraving Queue</h2>
           <div id="queueList" class="queue-list">
             <div class="empty-state-small">
               <p>No jobs in queue</p>
@@ -252,8 +180,16 @@
           <button id="refreshQueueBtn" class="btn-secondary btn-sm">Refresh Queue</button>
         </div>
 
+        <!-- Console Output -->
+        <div class="panel-section">
+          <h2>💻 Console Output</h2>
+          <div id="console" class="console"></div>
+          <button id="clearConsoleBtn" class="btn-secondary btn-sm">Clear Console</button>
+        </div>
+
+        <!-- G-Code Preview (hidden by default) -->
         <div class="panel-section" id="gcodePreviewSection" style="display: none;">
-          <h2>G-Code Preview</h2>
+          <h2>📜 G-Code Preview</h2>
           <div id="gcodePreviewContent" class="gcode-preview"></div>
           <div class="button-group">
             <button id="executeGcodeBtn" class="btn-success">Execute G-Code</button>
@@ -268,9 +204,10 @@
     const { ipcRenderer } = require('electron');
 
     let isConnected = false;
-    let laserPower = 100;  // Default to 100% for 0.5W laser
+    let laserPower = 100;
     let selectedItem = null;
     let currentGcode = null;
+    let jobsDoneCount = 0;
 
     // Log to console
     function log(message, type = 'info') {
@@ -290,22 +227,17 @@
       const status = document.getElementById('connectionStatus');
       const connectBtn = document.getElementById('connectBtn');
       const disconnectBtn = document.getElementById('disconnectBtn');
-      const startEngravingBtn = document.getElementById('startEngravingBtn');
-      
+
       if (connected) {
         indicator.className = 'status-indicator connected';
         status.textContent = 'Connected';
         connectBtn.disabled = true;
         disconnectBtn.disabled = false;
-        
-        // Enable control buttons
-        document.querySelectorAll('.btn-control, #laserOnBtn, #laserOffBtn, #testEngraveBtn').forEach(btn => {
+
+        document.querySelectorAll('.btn-control, #laserOnBtn, #laserOffBtn, #testEngraveBtn, #startEngravingBtn').forEach(btn => {
           btn.disabled = false;
         });
-        
-        if (startEngravingBtn) startEngravingBtn.disabled = false;
-        
-        // Enable G-code execution if we have gcode
+
         if (currentGcode) {
           document.getElementById('executeGcodeBtn').disabled = false;
         }
@@ -314,44 +246,31 @@
         status.textContent = 'Not Connected';
         connectBtn.disabled = false;
         disconnectBtn.disabled = true;
-        
-        document.querySelectorAll('.btn-control, #laserOnBtn, #laserOffBtn, #testEngraveBtn').forEach(btn => {
+
+        document.querySelectorAll('.btn-control, #laserOnBtn, #laserOffBtn, #testEngraveBtn, #startEngravingBtn').forEach(btn => {
           btn.disabled = true;
         });
-        
-        if (startEngravingBtn) startEngravingBtn.disabled = true;
       }
     }
 
     // Refresh batches list
     async function refreshBatches() {
-      log('Loading batches from database...', 'info');
-      
+      log('Loading batches...', 'info');
       const result = await ipcRenderer.invoke('get-all-batches');
       const batchFilter = document.getElementById('batchFilter');
-      
-      // Keep current selection
       const currentValue = batchFilter.value;
-      
-      // Reset options
-      batchFilter.innerHTML = '<option value="">All Items (No Filter)</option>';
-      
+
+      batchFilter.innerHTML = '<option value="">All Items</option>';
+
       if (result.success && result.batches.length > 0) {
         log(`Loaded ${result.batches.length} batches`, 'success');
-        
         result.batches.forEach((batch) => {
           const option = document.createElement('option');
           option.value = batch.batch_ref_id;
-          option.textContent = `${batch.batch_ref_id} - ${batch.component_type} (${parseInt(batch.qr_count).toLocaleString()} QRs)`;
+          option.textContent = `${batch.batch_ref_id} (${parseInt(batch.qr_count).toLocaleString()})`;
           batchFilter.appendChild(option);
         });
-        
-        // Restore selection if it still exists
-        if (currentValue) {
-          batchFilter.value = currentValue;
-        }
-      } else {
-        log('No batches found', 'info');
+        if (currentValue) batchFilter.value = currentValue;
       }
     }
 
@@ -359,258 +278,196 @@
     async function onBatchFilterChange() {
       const batchRefId = document.getElementById('batchFilter').value;
       const batchStats = document.getElementById('batchStats');
-      
+
       if (batchRefId) {
-        // Load batch statistics
         const statsResult = await ipcRenderer.invoke('get-batch-stats', batchRefId);
         if (statsResult.success && statsResult.stats) {
           const stats = statsResult.stats;
           document.getElementById('batchTotal').textContent = parseInt(stats.total_count).toLocaleString();
           document.getElementById('batchEngraved').textContent = parseInt(stats.engraved_count).toLocaleString();
           document.getElementById('batchPending').textContent = parseInt(stats.manufactured_count).toLocaleString();
-          batchStats.style.display = 'block';
-          log(`Filtering by batch: ${batchRefId}`, 'info');
+          batchStats.style.display = 'flex';
         }
       } else {
         batchStats.style.display = 'none';
-        log('Showing all items', 'info');
       }
-      
-      // Refresh items with filter
       await refreshItems();
     }
 
-    // Refresh available items from database
+    // Refresh items from database
     async function refreshItems() {
       const batchRefId = document.getElementById('batchFilter').value;
-      
-      log(`Loading items from database${batchRefId ? ' (filtered by batch)' : ''}...`, 'info');
-      
-      let result;
-      if (batchRefId) {
-        result = await ipcRenderer.invoke('get-items-by-batch', batchRefId);
-      } else {
-        result = await ipcRenderer.invoke('get-all-items');
-      }
-      
+      log(`Loading items${batchRefId ? ' (filtered)' : ''}...`, 'info');
+
+      let result = batchRefId
+        ? await ipcRenderer.invoke('get-items-by-batch', batchRefId)
+        : await ipcRenderer.invoke('get-all-items');
+
       const itemsList = document.getElementById('itemsList');
       itemsList.innerHTML = '';
-      
+
       if (result.success && result.items.length > 0) {
         log(`Loaded ${result.items.length} items`, 'success');
-        
+
         result.items.forEach((item) => {
           const itemEl = document.createElement('div');
           itemEl.className = 'item-card' + (selectedItem?.uid === item.uid ? ' selected' : '');
-          
-          // Parse metadata to check for batch info
-          let batchBadge = '';
-          try {
-            const metadata = JSON.parse(item.metadata || '{}');
-            if (metadata.batch_ref_id) {
-              batchBadge = `<span class="batch-badge" title="${metadata.batch_ref_id}">📦 Batch</span>`;
-            }
-          } catch (e) {}
-          
+
           itemEl.innerHTML = `
             <div class="item-header">
-              <strong>${item.uid.substring(0, 20)}...</strong>
+              <strong>${item.uid.substring(0, 25)}...</strong>
               <span class="item-status ${item.current_status}">${item.current_status}</span>
             </div>
             <div class="item-details">
-              <small>Type: ${item.component_type}</small><br/>
-              <small>Lot: ${item.lot_number}</small>
+              <small>${item.component_type} | ${item.lot_number}</small>
             </div>
             ${item.qr_image_url ? '<span class="qr-badge">QR ✓</span>' : '<span class="qr-badge missing">No QR</span>'}
-            ${batchBadge}
           `;
           itemEl.addEventListener('click', () => selectItem(item));
           itemsList.appendChild(itemEl);
         });
       } else {
         itemsList.innerHTML = '<div class="empty-state-small"><p>No items found</p></div>';
-        log('No items in database', 'info');
       }
     }
 
-    // Select an item and show QR preview
+    // Select item and show QR preview
     function selectItem(item) {
       selectedItem = item;
-      log(`Selected item: ${item.uid}`, 'info');
-      
-      // Update UI
+      log(`Selected: ${item.uid.substring(0, 30)}...`, 'info');
+
       document.querySelectorAll('.item-card').forEach(el => el.classList.remove('selected'));
       event.currentTarget.classList.add('selected');
-      
-      // Show QR preview
+
       const qrPreview = document.getElementById('qrPreview');
       if (item.qr_image_url) {
-        // Handle base64 data URL
-        if (item.qr_image_url.startsWith('data:')) {
-          qrPreview.innerHTML = `<img src="${item.qr_image_url}" alt="QR Code" style="max-width: 100%; max-height: 200px;"/>`;
-        } else {
-          qrPreview.innerHTML = `<img src="${item.qr_image_url}" alt="QR Code" style="max-width: 100%; max-height: 200px;"/>`;
-        }
+        qrPreview.innerHTML = `<img src="${item.qr_image_url}" alt="QR Code"/>`;
         document.getElementById('generateGcodeBtn').disabled = false;
         document.getElementById('previewGcodeBtn').disabled = false;
       } else {
-        qrPreview.innerHTML = '<p class="placeholder-text">No QR code image available</p>';
+        qrPreview.innerHTML = '<p class="placeholder-text">No QR image</p>';
         document.getElementById('generateGcodeBtn').disabled = true;
         document.getElementById('previewGcodeBtn').disabled = true;
       }
-      
-      // Update single QR code ID field
-      document.getElementById('qrCodeId').value = item.uid;
-      document.getElementById('currentJob').textContent = item.uid.substring(0, 25) + '...';
+
+      document.getElementById('currentJob').textContent = item.uid.substring(0, 20) + '...';
     }
 
-    // Generate G-code from selected QR
+    // Generate G-code
     async function generateGcode() {
       if (!selectedItem || !selectedItem.qr_image_url) {
-        log('No item selected or no QR image available', 'error');
+        log('No item selected', 'error');
         return;
       }
-      
+
       const qrSize = parseInt(document.getElementById('qrSize').value) || 30;
-      const currentLaserPower = parseInt(document.getElementById('laserPower').value) || 50;
-      log(`Generating G-code for ${selectedItem.uid} (${qrSize}mm, ${currentLaserPower}% power)...`, 'info');
-      
+      const power = parseInt(document.getElementById('laserPower').value) || 100;
+      log(`Generating G-code (${qrSize}mm, ${power}%)...`, 'info');
+
       const result = await ipcRenderer.invoke('generate-gcode-from-base64', {
         base64Data: selectedItem.qr_image_url,
         size: qrSize,
         itemUid: selectedItem.uid,
-        laserPower: currentLaserPower
+        laserPower: power
       });
-      
+
       if (result.success) {
         currentGcode = result.gcode;
-        log(`G-code generated: ${result.lineCount} lines at ${currentLaserPower}% power`, 'success');
-        document.getElementById('gcodeStatus').innerHTML = `
-          <span class="success">✓ G-code ready (${result.lineCount} commands, ${currentLaserPower}% power)</span>
-        `;
-        
-        // Enable execute button if connected
-        if (isConnected) {
-          document.getElementById('executeGcodeBtn').disabled = false;
-        }
+        log(`G-code ready: ${result.lineCount} commands`, 'success');
+        document.getElementById('gcodeStatus').innerHTML = `<span class="success">✓ ${result.lineCount} commands</span>`;
+        if (isConnected) document.getElementById('executeGcodeBtn').disabled = false;
       } else {
-        log(`G-code generation failed: ${result.error}`, 'error');
-        document.getElementById('gcodeStatus').innerHTML = `
-          <span class="error">✗ ${result.error}</span>
-        `;
+        log(`G-code failed: ${result.error}`, 'error');
+        document.getElementById('gcodeStatus').innerHTML = `<span class="error">✗ ${result.error}</span>`;
       }
     }
 
     // Preview G-code
     async function previewGcode() {
-      if (!selectedItem || !selectedItem.qr_image_url) {
-        log('No item selected', 'error');
-        return;
-      }
-      
+      if (!selectedItem) return;
+
       const qrSize = parseInt(document.getElementById('qrSize').value) || 30;
-      const currentLaserPower = parseInt(document.getElementById('laserPower').value) || 50;
-      log(`Generating G-code preview (${currentLaserPower}% power)...`, 'info');
-      
+      const power = parseInt(document.getElementById('laserPower').value) || 100;
+
       const result = await ipcRenderer.invoke('generate-gcode-from-base64', {
         base64Data: selectedItem.qr_image_url,
         size: qrSize,
         itemUid: selectedItem.uid,
-        laserPower: currentLaserPower
+        laserPower: power
       });
-      
+
       if (result.success) {
         currentGcode = result.gcode;
-        
-        // Show preview section
         document.getElementById('gcodePreviewSection').style.display = 'block';
-        document.getElementById('gcodePreviewContent').innerHTML = `<pre>${result.gcode.substring(0, 2000)}${result.gcode.length > 2000 ? '\n... (truncated)' : ''}</pre>`;
-        
-        if (isConnected) {
-          document.getElementById('executeGcodeBtn').disabled = false;
-        }
-        
-        log(`G-code preview ready: ${result.lineCount} lines`, 'success');
-      } else {
-        log(`Preview failed: ${result.error}`, 'error');
+        document.getElementById('gcodePreviewContent').innerHTML =
+          `<pre>${result.gcode.substring(0, 3000)}${result.gcode.length > 3000 ? '\n... (truncated)' : ''}</pre>`;
+        if (isConnected) document.getElementById('executeGcodeBtn').disabled = false;
+        log(`Preview ready: ${result.lineCount} lines`, 'success');
       }
     }
 
     // Execute G-code
     async function executeGcode() {
-      if (!currentGcode) {
-        log('No G-code generated', 'error');
-        return;
-      }
-      
-      if (!isConnected) {
-        log('Machine not connected', 'error');
-        return;
-      }
-      
+      if (!currentGcode || !isConnected) return;
+
       log('Executing G-code...', 'success');
       document.getElementById('machineStatus').textContent = 'Engraving...';
-      
+
       const result = await ipcRenderer.invoke('execute-gcode', currentGcode);
-      
+
       if (result.success) {
-        log('G-code execution complete', 'success');
+        log('Engraving complete!', 'success');
         document.getElementById('machineStatus').textContent = 'Complete';
-        
-        // Update item status
+        jobsDoneCount++;
+        document.getElementById('jobsDone').textContent = jobsDoneCount;
+
         if (selectedItem) {
           await ipcRenderer.invoke('update-item-status', selectedItem.uid, 'engraved');
           refreshItems();
         }
       } else {
-        log(`Execution failed: ${result.error}`, 'error');
+        log(`Error: ${result.error}`, 'error');
         document.getElementById('machineStatus').textContent = 'Error';
       }
     }
 
-    // Close G-code preview
-    function closeGcodePreview() {
-      document.getElementById('gcodePreviewSection').style.display = 'none';
-    }
-
     // Refresh ports
     async function refreshPorts() {
-      log('Scanning for Arduino ports...');
+      log('Scanning ports...');
       const ports = await ipcRenderer.invoke('list-ports');
       const portSelect = document.getElementById('portSelect');
       portSelect.innerHTML = '<option value="">Select Port...</option>';
-      
+
       ports.forEach(port => {
         const option = document.createElement('option');
         option.value = port.path;
         option.textContent = `${port.path} ${port.manufacturer ? '(' + port.manufacturer + ')' : ''}`;
         portSelect.appendChild(option);
       });
-      
+
       log(`Found ${ports.length} port(s)`, 'success');
-      
       if (ports.length === 1) {
         portSelect.value = ports[0].path;
         log(`Auto-selected: ${ports[0].path}`, 'info');
       }
     }
 
-    // Connect to Arduino
+    // Connect
     async function connect() {
       const portPath = document.getElementById('portSelect').value;
       if (!portPath) {
-        log('Please select a port', 'error');
+        log('Select a port first', 'error');
         return;
       }
-      
+
       log(`Connecting to ${portPath}...`);
       const result = await ipcRenderer.invoke('connect', portPath);
-      
+
       if (result.success) {
-        log('Connected successfully!', 'success');
+        log('Connected!', 'success');
         updateConnectionUI(true);
       } else {
-        log(`Connection failed: ${result.error}`, 'error');
+        log(`Failed: ${result.error}`, 'error');
       }
     }
 
@@ -622,203 +479,97 @@
       updateConnectionUI(false);
     }
 
-    // Home machine - Set current position as home (0,0,0)
+    // Home controls
     async function setHome() {
-      log('Setting current position as home (0,0,0)...', 'info');
+      log('Setting home position...', 'info');
       const result = await ipcRenderer.invoke('home-machine');
-      if (result.success) {
-        log('Home position set at current location', 'success');
-      } else {
-        log(`Set home failed: ${result.error}`, 'error');
-      }
+      if (result.success) log('Home set', 'success');
+      else log(`Error: ${result.error}`, 'error');
     }
 
-    // Go to home position (0,0,0)
     async function goToHome() {
-      log('Moving to home position (0,0,0)...', 'info');
+      log('Moving to home...', 'info');
       const result = await ipcRenderer.invoke('go-to-home');
-      if (result.success) {
-        log('Arrived at home position', 'success');
-      } else {
-        log(`Go to home failed: ${result.error}`, 'error');
-      }
+      if (result.success) log('At home', 'success');
+      else log(`Error: ${result.error}`, 'error');
     }
 
-    // Reset
     async function reset() {
-      log('Resetting GRBL...');
+      log('Resetting...');
       const result = await ipcRenderer.invoke('reset');
-      if (result.success) {
-        log('Reset successful', 'success');
-      } else {
-        log(`Reset failed: ${result.error}`, 'error');
-      }
+      if (result.success) log('Reset done', 'success');
+      else log(`Error: ${result.error}`, 'error');
     }
 
-    // Laser control
+    // Laser controls
     async function laserOn() {
-      log(`Turning laser ON at ${laserPower}% power...`, 'warning');
+      log(`Laser ON at ${laserPower}%...`, 'warning');
       const result = await ipcRenderer.invoke('laser-on', laserPower);
       if (result.success) {
         document.getElementById('laserState').textContent = `ON (${laserPower}%)`;
         log('Laser ON', 'warning');
-      } else {
-        log(`Laser ON failed: ${result.error}`, 'error');
-      }
+      } else log(`Error: ${result.error}`, 'error');
     }
 
     async function laserOff() {
-      log('Turning laser OFF...');
+      log('Laser OFF...');
       const result = await ipcRenderer.invoke('laser-off');
       if (result.success) {
         document.getElementById('laserState').textContent = 'OFF';
         log('Laser OFF', 'success');
-      } else {
-        log(`Laser OFF failed: ${result.error}`, 'error');
-      }
+      } else log(`Error: ${result.error}`, 'error');
     }
 
     // Test engrave
     async function testEngrave() {
-      log('Starting test engraving (10mm square)...', 'success');
+      log('Test engraving (10mm square)...', 'success');
       const result = await ipcRenderer.invoke('test-engrave');
-      if (result.success) {
-        log('Test engraving initiated', 'success');
-      } else {
-        log(`Test engrave failed: ${result.error}`, 'error');
-      }
+      if (result.success) log('Test complete', 'success');
+      else log(`Error: ${result.error}`, 'error');
     }
 
-    // Refresh engraving queue
+    // Refresh queue
     async function refreshQueue() {
-      log('Refreshing engraving queue...', 'info');
-      
       const result = await ipcRenderer.invoke('refresh-queue');
-      
-      if (result.success) {
-        const queueList = document.getElementById('queueList');
-        queueList.innerHTML = '';
-        
-        if (result.jobs.length === 0) {
-          queueList.innerHTML = '<div class="empty-state-small"><p>No jobs in queue</p></div>';
-        } else {
-          log(`Loaded ${result.jobs.length} pending jobs`, 'success');
-          
-          result.jobs.forEach((job) => {
-            const jobItem = document.createElement('div');
-            jobItem.className = 'queue-item';
-            jobItem.innerHTML = `
-              <strong>Job #${job.id}</strong><br/>
-              UID: ${job.item_uid.substring(0, 20)}...<br/>
-              Status: ${job.status}
-            `;
-            jobItem.addEventListener('click', () => engraveFromQueue(job));
-            queueList.appendChild(jobItem);
-          });
-        }
+      const queueList = document.getElementById('queueList');
+      queueList.innerHTML = '';
+
+      if (result.success && result.jobs.length > 0) {
+        result.jobs.forEach((job) => {
+          const jobItem = document.createElement('div');
+          jobItem.className = 'queue-item';
+          jobItem.innerHTML = `
+            <strong>Job #${job.id}</strong><br/>
+            <small>${job.item_uid.substring(0, 25)}...</small>
+          `;
+          jobItem.addEventListener('click', () => engraveFromQueue(job));
+          queueList.appendChild(jobItem);
+        });
       } else {
-        log(`Failed to refresh queue: ${result.error}`, 'error');
+        queueList.innerHTML = '<div class="empty-state-small"><p>No jobs in queue</p></div>';
       }
     }
 
-    // Engrave from queue
-    async function engraveFromQueue(job) {
-      log(`Starting engraving for job #${job.id}...`, 'success');
-      const result = await ipcRenderer.invoke('start-engraving-job', job.id);
-      
-      if (result.success) {
-        log('Engraving started', 'success');
-        refreshQueue();
-      } else {
-        log(`Failed: ${result.error}`, 'error');
-      }
-    }
-
-    // Engraving Process
+    // Start engraving (from selected item)
     async function startEngraving() {
-      const selection = document.getElementById('qrSelection').value;
-
-      if (selection === 'batch') {
-        const batchId = document.getElementById('batchId').value;
-        const timeDelay = document.getElementById('timeDelay').value;
-
-        if (!batchId || !timeDelay) {
-          log('Please enter both Batch ID and Time Delay', 'error');
-          return;
-        }
-
-        log(`Starting batch engraving for Lot: ${batchId} with ${timeDelay}s delay...`, 'success');
-        const result = await ipcRenderer.invoke('start-batch-engraving', batchId, parseInt(timeDelay));
-
-        if (result.success) {
-          log(`Batch complete: ${result.processedItems} items`, 'success');
-        } else {
-          log(`Batch engraving failed: ${result.error}`, 'error');
-        }
-      } else if (selection === 'single') {
-        const qrCodeId = document.getElementById('qrCodeId').value;
-
-        if (!qrCodeId) {
-          log('Please enter QR Code ID or select an item', 'error');
-          return;
-        }
-
-        log(`Starting engraving for: ${qrCodeId}...`, 'success');
-        const result = await ipcRenderer.invoke('engrave-single', qrCodeId);
-
-        if (result.success) {
-          log('Engraving complete', 'success');
-          refreshItems();
-        } else {
-          log(`Engraving failed: ${result.error}`, 'error');
-        }
-      } else {
-        log('Please select an engraving option', 'error');
-      }
-    }
-
-    async function stopEngraving() {
-      log('Stopping engraving process...', 'warning');
-      const result = await ipcRenderer.invoke('stop-engraving');
-
-      if (result.success) {
-        log('Engraving process stopped', 'success');
-      } else {
-        log(`Failed to stop engraving: ${result.error}`, 'error');
-      }
-    }
-
-    // Generate QR Code
-    async function generateQRCode() {
-      const data = document.getElementById('qrData').value;
-      const batchId = document.getElementById('qrBatchId').value;
-
-      if (!data) {
-        log('Please enter data for the QR code', 'error');
+      if (!selectedItem) {
+        log('Select an item first', 'error');
         return;
       }
 
-      log(`Generating QR code for data: ${data}...`, 'info');
-      const result = await ipcRenderer.invoke('generate-qr-code', data, batchId ? parseInt(batchId) : null);
+      if (!currentGcode) {
+        await generateGcode();
+      }
 
-      if (result.status === 'success') {
-        log(`QR code generated: ${result.qr_code}`, 'success');
-        refreshItems();
-      } else {
-        log(`Failed: ${result.message}`, 'error');
+      if (currentGcode) {
+        await executeGcode();
       }
     }
 
-    // Status updates from backend
-    ipcRenderer.on('status-update', (event, status) => {
-      document.getElementById('machineStatus').textContent = status;
-      if (status.includes('Error') || status.includes('ALARM')) {
-        log(status, 'error');
-      } else if (status.includes('%')) {
-        // Progress update
-        log(status, 'info');
-      }
-    });
+    // Close G-code preview
+    function closeGcodePreview() {
+      document.getElementById('gcodePreviewSection').style.display = 'none';
+    }
 
     // Event listeners
     document.getElementById('refreshPortsBtn').addEventListener('click', refreshPorts);
@@ -830,75 +581,43 @@
     document.getElementById('laserOnBtn').addEventListener('click', laserOn);
     document.getElementById('laserOffBtn').addEventListener('click', laserOff);
     document.getElementById('testEngraveBtn').addEventListener('click', testEngrave);
-    document.getElementById('startEngravingBtn').addEventListener('click', startEngraving);
-    document.getElementById('stopEngravingBtn').addEventListener('click', stopEngraving);
-    document.getElementById('clearConsoleBtn').addEventListener('click', () => {
-      document.getElementById('console').innerHTML = '';
-    });
-    
-    document.getElementById('refreshQueueBtn').addEventListener('click', refreshQueue);
-    document.getElementById('refreshItemsBtn').addEventListener('click', refreshItems);
-    document.getElementById('refreshBatchesBtn').addEventListener('click', refreshBatches);
-    document.getElementById('batchFilter').addEventListener('change', onBatchFilterChange);
-    
     document.getElementById('generateGcodeBtn').addEventListener('click', generateGcode);
     document.getElementById('previewGcodeBtn').addEventListener('click', previewGcode);
     document.getElementById('executeGcodeBtn').addEventListener('click', executeGcode);
     document.getElementById('closeGcodePreviewBtn').addEventListener('click', closeGcodePreview);
-    
+    document.getElementById('startEngravingBtn').addEventListener('click', startEngraving);
+    document.getElementById('refreshBatchesBtn').addEventListener('click', refreshBatches);
+    document.getElementById('refreshItemsBtn').addEventListener('click', refreshItems);
+    document.getElementById('refreshQueueBtn').addEventListener('click', refreshQueue);
+    document.getElementById('clearConsoleBtn').addEventListener('click', () => {
+      document.getElementById('console').innerHTML = '';
+      log('Console cleared', 'info');
+    });
+    document.getElementById('batchFilter').addEventListener('change', onBatchFilterChange);
+
+    // Laser power slider
     document.getElementById('laserPower').addEventListener('input', (e) => {
       laserPower = parseInt(e.target.value);
       document.getElementById('powerValue').textContent = laserPower;
-      // Show the actual S value (0-1000) that GRBL uses
-      const sValue = Math.round(laserPower * 10);
-      document.getElementById('sValue').textContent = sValue;
+      document.getElementById('sValue').textContent = Math.round(laserPower * 10);
     });
 
-    document.getElementById('qrSelection').addEventListener('change', (e) => {
-      const value = e.target.value;
-      document.getElementById('batchControls').style.display = value === 'batch' ? 'block' : 'none';
-      document.getElementById('singleControls').style.display = value === 'single' ? 'block' : 'none';
+    // QR size slider
+    document.getElementById('qrSize').addEventListener('input', (e) => {
+      document.getElementById('qrSizeValue').textContent = e.target.value;
     });
-
-    document.getElementById('generateQRBtn').addEventListener('click', generateQRCode);
-
-    // Operator instruction step handlers
-    let currentStep = 1;
-    
-    function showStep(stepNumber) {
-      document.querySelectorAll('.instruction-step').forEach(step => {
-        step.style.display = 'none';
-      });
-      
-      if (stepNumber <= 3) {
-        document.getElementById(`step${stepNumber}`).style.display = 'block';
-      } else {
-        document.getElementById('stepEngraving').style.display = 'block';
-      }
-      
-      currentStep = stepNumber;
-    }
-    
-    document.getElementById('step1DoneBtn').addEventListener('click', () => showStep(2));
-    document.getElementById('step2BackBtn').addEventListener('click', () => showStep(1));
-    document.getElementById('step2DoneBtn').addEventListener('click', () => showStep(3));
-    document.getElementById('step3BackBtn').addEventListener('click', () => showStep(2));
-    document.getElementById('step3DoneBtn').addEventListener('click', () => {
-      showStep(4);
-      log('Pre-engraving checks completed. Ready to engrave.', 'success');
-    });
-    document.getElementById('stepResetBtn').addEventListener('click', () => showStep(1));
 
     // Initialize
-    window.addEventListener('DOMContentLoaded', () => {
-      log('Engraving Control App Ready', 'success');
-      log('Work Area: 150mm × 150mm', 'info');
-      refreshPorts();
-      refreshBatches();
-      refreshItems();
-      refreshQueue();
-      showStep(1);
-    });
+    async function init() {
+      log('GENGRAV Engraving App started', 'success');
+      await refreshPorts();
+      await refreshBatches();
+      await refreshItems();
+      await refreshQueue();
+    }
+
+    init();
   </script>
 </body>
+
 </html>
