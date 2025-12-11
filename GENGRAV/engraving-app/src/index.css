@@ -849,8 +849,94 @@ input[type="number"] {
 
 /* G-Code Preview Modal */
 .modal-wide {
-  width: 700px;
+  width: 800px;
   max-width: 95vw;
+}
+
+/* Settings Modal Two-Column Layout */
+.settings-columns {
+  display: flex;
+  gap: 20px;
+}
+
+.settings-column {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Radio Group for Conversion Tool */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.radio-label:hover {
+  border-color: var(--accent);
+}
+
+.radio-label input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+.radio-label input[type="radio"]:checked + span {
+  color: var(--accent);
+}
+
+.radio-label input[type="radio"]:disabled + span {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+/* Range Slider Styling */
+.setting-row input[type="range"] {
+  flex: 1;
+  min-width: 100px;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg);
+  border-radius: 3px;
+  outline: none;
+}
+
+.setting-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.setting-row input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.value-display {
+  min-width: 40px;
+  text-align: right;
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .gcode-info {

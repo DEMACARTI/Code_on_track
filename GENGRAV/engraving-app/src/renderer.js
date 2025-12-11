@@ -15,16 +15,28 @@ let qrImageData = null;  // Canvas image data for G-code generation
 
 // Default engraving settings (LaserGRBL style)
 const DEFAULT_ENGRAVING_SETTINGS = {
-  engravingSpeed: 300,    // mm/min
+  engravingSpeed: 300,    // mm/min (Mark Speed)
   laserMode: 'M3',        // M3 = Constant, M4 = Dynamic
-  sMin: 0,                // S-MIN (0-1000)
-  sMax: 700,              // S-MAX (0-1000)
+  sMin: 0,                // S-MIN (0-1000) - laser OFF power
+  sMax: 700,              // S-MAX (0-1000) - laser ON power
   autoSize: true,
-  dpi: 300,
   sizeW: 30,              // Width in mm (default for QR codes)
   sizeH: 30,              // Height in mm (default for QR codes)
   offsetX: 0,             // X offset in mm
-  offsetY: 0              // Y offset in mm
+  offsetY: 0,             // Y offset in mm
+  
+  // LaserGRBL Image Parameters
+  brightness: 0,          // -100 to 100 (0 = no change)
+  contrast: 0,            // -100 to 100 (0 = no change)
+  whiteClip: 5,           // 0-100 (percentage of white to clip)
+  
+  // LaserGRBL Conversion Tool
+  conversionTool: 'line2line',  // line2line, dithering, vectorize
+  
+  // Line-to-Line Options
+  direction: 'horizontal', // horizontal, vertical, diagonal
+  quality: 8,             // Lines per mm (1-20)
+  linePreview: false      // Show line preview
 };
 
 // Load settings from localStorage or use defaults
@@ -62,6 +74,7 @@ function updateSettingsSummary() {
   $('summarySMin').textContent = engravingSettings.sMin;
   $('summarySMax').textContent = engravingSettings.sMax;
   $('summarySize').textContent = `${engravingSettings.sizeW}x${engravingSettings.sizeH}`;
+  $('summaryQuality').textContent = engravingSettings.quality || 8;
 }
 
 // Populate modal form with current settings
@@ -71,12 +84,33 @@ function populateSettingsModal() {
   $('sMin').value = engravingSettings.sMin;
   $('sMax').value = engravingSettings.sMax;
   $('autoSize').checked = engravingSettings.autoSize;
-  $('dpi').value = engravingSettings.dpi;
   $('sizeW').value = engravingSettings.sizeW;
   $('sizeH').value = engravingSettings.sizeH;
   $('offsetX').value = engravingSettings.offsetX;
   $('offsetY').value = engravingSettings.offsetY;
+  
+  // LaserGRBL-style parameters
+  $('brightness').value = engravingSettings.brightness || 0;
+  $('contrast').value = engravingSettings.contrast || 0;
+  $('whiteClip').value = engravingSettings.whiteClip || 5;
+  $('direction').value = engravingSettings.direction || 'horizontal';
+  $('quality').value = engravingSettings.quality || 8;
+  $('linePreview').checked = engravingSettings.linePreview || false;
+  
+  // Set conversion tool radio
+  const convTool = engravingSettings.conversionTool || 'line2line';
+  const radio = document.querySelector(`input[name="conversionTool"][value="${convTool}"]`);
+  if (radio) radio.checked = true;
+  
   updatePercentages();
+  updateSliderDisplays();
+}
+
+// Update slider value displays
+function updateSliderDisplays() {
+  $('brightnessVal').textContent = $('brightness').value;
+  $('contrastVal').textContent = $('contrast').value;
+  $('whiteClipVal').textContent = $('whiteClip').value + '%';
 }
 
 // Update S-MIN and S-MAX percentages
@@ -89,17 +123,25 @@ function updatePercentages() {
 
 // Get settings from modal form
 function getSettingsFromModal() {
+  const selectedTool = document.querySelector('input[name="conversionTool"]:checked');
   return {
     engravingSpeed: parseInt($('engravingSpeed').value) || 300,
     laserMode: $('laserMode').value,
     sMin: parseInt($('sMin').value) || 0,
     sMax: parseInt($('sMax').value) || 700,
     autoSize: $('autoSize').checked,
-    dpi: parseInt($('dpi').value) || 300,
     sizeW: parseFloat($('sizeW').value) || 100,
     sizeH: parseFloat($('sizeH').value) || 100,
     offsetX: parseFloat($('offsetX').value) || 0,
-    offsetY: parseFloat($('offsetY').value) || 0
+    offsetY: parseFloat($('offsetY').value) || 0,
+    // LaserGRBL-style parameters
+    brightness: parseInt($('brightness').value) || 0,
+    contrast: parseInt($('contrast').value) || 0,
+    whiteClip: parseInt($('whiteClip').value) || 5,
+    conversionTool: selectedTool ? selectedTool.value : 'line2line',
+    direction: $('direction').value || 'horizontal',
+    quality: parseFloat($('quality').value) || 8,
+    linePreview: $('linePreview').checked
   };
 }
 
@@ -205,9 +247,13 @@ async function selectQRItem(item, element) {
 let qrMatrix = null;
 let qrModuleCount = 0;
 
-// Generate proper G-code for QR code engraving using matrix data
+/**
+ * LaserGRBL-style Line-to-Line G-code Generation
+ * This properly scans the QR code pixel by pixel and generates
+ * G-code with correct laser ON/OFF segments
+ */
 async function generateQRGCode() {
-  const { engravingSpeed, laserMode, sMin, sMax, sizeW, sizeH, offsetX, offsetY } = engravingSettings;
+  const { engravingSpeed, laserMode, sMin, sMax, sizeW, sizeH, offsetX, offsetY, quality, direction } = engravingSettings;
   
   if (!selectedQRItem) {
     log('No QR code selected', 'error');
@@ -235,99 +281,174 @@ async function generateQRGCode() {
     return null;
   }
   
+  // Calculate dimensions
+  const moduleSize = sizeW / qrModuleCount;  // Size of each QR module in mm
+  
+  // Use quality setting for lines per mm (higher = better quality, slower)
+  const linesPerMm = quality || 8;  // Default 8 lines/mm if not set
+  const lineSpacing = 1 / linesPerMm;
+  const totalLines = Math.ceil(sizeH / lineSpacing);
+  
+  // Determine scan direction (horizontal or vertical)
+  const isHorizontal = (direction || 'horizontal') === 'horizontal';
+  
   const lines = [];
-  lines.push('; GENGRAV QR Code Engraving');
+  lines.push('; GENGRAV QR Code Engraving (LaserGRBL-style Line2Line)');
   lines.push(`; UID: ${selectedQRItem.uid}`);
   lines.push(`; Settings: Speed=${engravingSpeed}mm/min, S-MIN=${sMin}, S-MAX=${sMax}`);
-  lines.push(`; Size: ${sizeW}x${sizeH}mm`);
-  lines.push(`; QR Matrix: ${qrModuleCount}x${qrModuleCount} modules`);
+  lines.push(`; Size: ${sizeW}x${sizeH}mm at offset (${offsetX}, ${offsetY})`);
+  lines.push(`; QR Modules: ${qrModuleCount}x${qrModuleCount}`);
+  lines.push(`; Module size: ${moduleSize.toFixed(3)}mm`);
+  lines.push(`; Quality: ${linesPerMm} lines/mm (${lineSpacing.toFixed(3)}mm spacing)`);
+  lines.push(`; Direction: ${isHorizontal ? 'Horizontal' : 'Vertical'}`);
+  lines.push(`; Total lines: ${totalLines}`);
   lines.push('');
   lines.push('G21 ; Units: mm');
   lines.push('G90 ; Absolute positioning');
-  lines.push('M5 S0 ; Laser off initially');
-  lines.push(`G0 X${offsetX.toFixed(3)} Y${offsetY.toFixed(3)} ; Move to start position`);
-  lines.push(`${laserMode} S0 ; Set laser mode (M3=constant power)`);
+  
+  // Move to start position with laser OFF
+  lines.push(`G0 X${offsetX.toFixed(3)} Y${offsetY.toFixed(3)} F${engravingSpeed}`);
+  
+  // Enable laser mode (M3 for constant power - critical for PWM control)
+  lines.push(`${laserMode} S0 ; Laser ON at zero power`);
   lines.push('');
   
-  // Calculate module size
-  const moduleSize = sizeW / qrModuleCount;  // Size of each QR module in mm
+  let lineCount = 0;
   
-  // Calculate line spacing - need enough passes to fill each module
-  // For a typical 0.1-0.2mm laser dot, we need multiple passes per module
-  const lineSpacing = 0.1;  // 0.1mm between lines for solid fill
-  const passesPerModule = Math.max(1, Math.ceil(moduleSize / lineSpacing));
-  
-  lines.push(`; Module size: ${moduleSize.toFixed(3)}mm`);
-  lines.push(`; Line spacing: ${lineSpacing}mm`);
-  lines.push(`; Lines per module: ${passesPerModule}`);
-  lines.push('');
-  
-  // Engrave using raster scanning - row by row
-  // For each QR module row, we do multiple horizontal passes
-  for (let moduleRow = 0; moduleRow < qrModuleCount; moduleRow++) {
-    const rowData = qrMatrix[moduleRow];
-    
-    // Do multiple passes within each module row for solid fill
-    for (let pass = 0; pass < passesPerModule; pass++) {
-      const y = offsetY + (moduleRow * moduleSize) + (pass * lineSpacing) + (lineSpacing / 2);
+  if (isHorizontal) {
+    // Horizontal scanning (Y increases, X sweeps)
+    for (let lineIdx = 0; lineIdx < totalLines; lineIdx++) {
+      const y = offsetY + (lineIdx * lineSpacing);
       
-      // Alternate direction for efficiency (bidirectional scanning)
-      const isLeftToRight = ((moduleRow * passesPerModule) + pass) % 2 === 0;
+      // Determine which QR module row this line falls into
+      const moduleRow = Math.min(Math.floor((lineIdx * lineSpacing) / moduleSize), qrModuleCount - 1);
+      const rowData = qrMatrix[moduleRow];
       
-      // Move to start of line with laser OFF
-      const startX = isLeftToRight ? offsetX : (offsetX + sizeW);
-      lines.push(`G0 X${startX.toFixed(3)} Y${y.toFixed(3)} S0 ; Start line ${moduleRow * passesPerModule + pass + 1}`);
+      // Alternate scan direction (bidirectional)
+      const leftToRight = (lineIdx % 2 === 0);
       
-      // Scan across all modules in this row
-      // Build segments based on black/white transitions
-      let lastX = startX;
-      let lastPower = 0;
+      // Build segments for this line
+      const segments = [];
+      let currentSegmentStart = 0;
+      let currentIsBlack = rowData[leftToRight ? 0 : qrModuleCount - 1] === 1;
       
+      // Scan through each module boundary
       for (let moduleCol = 0; moduleCol <= qrModuleCount; moduleCol++) {
-        // Get actual column based on direction
-        const actualCol = isLeftToRight ? moduleCol : (qrModuleCount - moduleCol);
-        
-        // Calculate X position at this module boundary
-        const x = isLeftToRight 
-          ? offsetX + (moduleCol * moduleSize)
-          : offsetX + sizeW - (moduleCol * moduleSize);
-        
-        // Determine if we need to change power (at module boundary)
-        let newPower;
+        // Check if this module is black
+        let isBlack;
         if (moduleCol >= qrModuleCount) {
-          // End of line - ensure we finish the last segment
-          newPower = 0;
+          isBlack = false; // End of line
         } else {
-          // Get the module color: 1 = black (engrave), 0 = white (skip)
-          const colToCheck = isLeftToRight ? moduleCol : (qrModuleCount - 1 - moduleCol);
-          const isBlack = rowData[colToCheck] === 1;
-          newPower = isBlack ? sMax : 0;
+          const checkCol = leftToRight ? moduleCol : (qrModuleCount - 1 - moduleCol);
+          isBlack = rowData[checkCol] === 1;
         }
         
-        // If power changes, output the previous segment
-        if (newPower !== lastPower && moduleCol > 0) {
-          if (lastPower > 0) {
-            // Was engraving - output G1 with laser power
-            lines.push(`G1 X${x.toFixed(3)} Y${y.toFixed(3)} F${engravingSpeed} S${lastPower}`);
-          } else {
-            // Was not engraving - rapid move with laser off
-            lines.push(`G0 X${x.toFixed(3)} Y${y.toFixed(3)} S0`);
-          }
-          lastX = x;
+        // If color changes or end of line, save the segment
+        if (isBlack !== currentIsBlack || moduleCol === qrModuleCount) {
+          segments.push({
+            startModule: currentSegmentStart,
+            endModule: moduleCol,
+            isBlack: currentIsBlack
+          });
+          currentSegmentStart = moduleCol;
+          currentIsBlack = isBlack;
         }
-        
-        lastPower = newPower;
       }
       
-      // Ensure we reach the end of the line
-      const endX = isLeftToRight ? (offsetX + sizeW) : offsetX;
-      if (Math.abs(lastX - endX) > 0.001) {
-        if (lastPower > 0) {
-          lines.push(`G1 X${endX.toFixed(3)} Y${y.toFixed(3)} F${engravingSpeed} S${lastPower}`);
+      // Generate G-code for this line
+      let currentX = leftToRight ? offsetX : (offsetX + sizeW);
+      let laserIsOn = false;
+      
+      for (const seg of segments) {
+        const segStartX = offsetX + (leftToRight ? seg.startModule * moduleSize : sizeW - seg.startModule * moduleSize);
+        const segEndX = offsetX + (leftToRight ? seg.endModule * moduleSize : sizeW - seg.endModule * moduleSize);
+        
+        if (seg.isBlack) {
+          // Rapid move to start of segment if needed
+          if (Math.abs(currentX - segStartX) > 0.001) {
+            lines.push(`G0 X${segStartX.toFixed(3)} Y${y.toFixed(3)} S0`);
+            currentX = segStartX;
+          }
+          
+          // Engrave the segment with laser ON
+          lines.push(`G1 X${segEndX.toFixed(3)} Y${y.toFixed(3)} F${engravingSpeed} S${sMax}`);
+          currentX = segEndX;
+          laserIsOn = true;
         } else {
-          lines.push(`G0 X${endX.toFixed(3)} Y${y.toFixed(3)} S0`);
+          // White segment - rapid move
+          if (laserIsOn || Math.abs(currentX - segEndX) > 0.001) {
+            lines.push(`G0 X${segEndX.toFixed(3)} Y${y.toFixed(3)} S0`);
+            currentX = segEndX;
+            laserIsOn = false;
+          }
         }
       }
+      
+      lineCount++;
+    }
+  } else {
+    // Vertical scanning (X increases, Y sweeps)
+    for (let lineIdx = 0; lineIdx < totalLines; lineIdx++) {
+      const x = offsetX + (lineIdx * lineSpacing);
+      
+      // Determine which QR module column this line falls into
+      const moduleCol = Math.min(Math.floor((lineIdx * lineSpacing) / moduleSize), qrModuleCount - 1);
+      
+      // Alternate scan direction (bidirectional)
+      const topToBottom = (lineIdx % 2 === 0);
+      
+      // Build segments for this column
+      const segments = [];
+      let currentSegmentStart = 0;
+      let currentIsBlack = qrMatrix[topToBottom ? 0 : qrModuleCount - 1][moduleCol] === 1;
+      
+      for (let moduleRow = 0; moduleRow <= qrModuleCount; moduleRow++) {
+        let isBlack;
+        if (moduleRow >= qrModuleCount) {
+          isBlack = false;
+        } else {
+          const checkRow = topToBottom ? moduleRow : (qrModuleCount - 1 - moduleRow);
+          isBlack = qrMatrix[checkRow][moduleCol] === 1;
+        }
+        
+        if (isBlack !== currentIsBlack || moduleRow === qrModuleCount) {
+          segments.push({
+            startModule: currentSegmentStart,
+            endModule: moduleRow,
+            isBlack: currentIsBlack
+          });
+          currentSegmentStart = moduleRow;
+          currentIsBlack = isBlack;
+        }
+      }
+      
+      // Generate G-code for this column
+      let currentY = topToBottom ? offsetY : (offsetY + sizeH);
+      let laserIsOn = false;
+      
+      for (const seg of segments) {
+        const segStartY = offsetY + (topToBottom ? seg.startModule * moduleSize : sizeH - seg.startModule * moduleSize);
+        const segEndY = offsetY + (topToBottom ? seg.endModule * moduleSize : sizeH - seg.endModule * moduleSize);
+        
+        if (seg.isBlack) {
+          if (Math.abs(currentY - segStartY) > 0.001) {
+            lines.push(`G0 X${x.toFixed(3)} Y${segStartY.toFixed(3)} S0`);
+            currentY = segStartY;
+          }
+          
+          lines.push(`G1 X${x.toFixed(3)} Y${segEndY.toFixed(3)} F${engravingSpeed} S${sMax}`);
+          currentY = segEndY;
+          laserIsOn = true;
+        } else {
+          if (laserIsOn || Math.abs(currentY - segEndY) > 0.001) {
+            lines.push(`G0 X${x.toFixed(3)} Y${segEndY.toFixed(3)} S0`);
+            currentY = segEndY;
+            laserIsOn = false;
+          }
+        }
+      }
+      
+      lineCount++;
     }
   }
   
@@ -336,6 +457,8 @@ async function generateQRGCode() {
   lines.push('M5 S0 ; Laser off');
   lines.push(`G0 X${offsetX.toFixed(3)} Y${offsetY.toFixed(3)} ; Return to start`);
   lines.push('M2 ; Program end');
+  
+  log(`Generated ${lineCount} scan lines, ${lines.length} G-code commands (${isHorizontal ? 'horizontal' : 'vertical'})`);
   
   return lines.join('\n');
 }
@@ -654,16 +777,25 @@ function autoSaveSettings() {
   engravingSettings = getSettingsFromModal();
   saveEngravingSettings(engravingSettings);
   updateSettingsSummary();
+  updateSliderDisplays();
 }
 
 // Auto-save on any settings change
-const settingsInputs = ['engravingSpeed', 'laserMode', 'sMin', 'sMax', 'autoSize', 'dpi', 'sizeW', 'sizeH', 'offsetX', 'offsetY'];
+const settingsInputs = [
+  'engravingSpeed', 'laserMode', 'sMin', 'sMax', 'autoSize', 'sizeW', 'sizeH', 'offsetX', 'offsetY',
+  'brightness', 'contrast', 'whiteClip', 'direction', 'quality', 'linePreview'
+];
 settingsInputs.forEach(id => {
   const el = $(id);
   if (el) {
     el.addEventListener('change', autoSaveSettings);
     el.addEventListener('input', autoSaveSettings);
   }
+});
+
+// Auto-save for radio buttons (conversion tool)
+document.querySelectorAll('input[name="conversionTool"]').forEach(radio => {
+  radio.addEventListener('change', autoSaveSettings);
 });
 
 // Update percentages when S-MIN/S-MAX change

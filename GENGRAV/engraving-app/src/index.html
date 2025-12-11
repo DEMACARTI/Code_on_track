@@ -228,6 +228,7 @@
           <span>S-MIN: <b id="summarySMin">0</b></span>
           <span>S-MAX: <b id="summarySMax">700</b></span>
           <span>Size: <b id="summarySize">100x100</b> mm</span>
+          <span>Quality: <b id="summaryQuality">8</b> L/mm</span>
         </div>
         <div id="progressBox" class="progress-box" hidden>
           <div class="progress-bar">
@@ -256,74 +257,133 @@
   
   <!-- Engraving Settings Modal -->
   <div id="settingsModal" class="modal" hidden>
-    <div class="modal-content">
+    <div class="modal-content modal-wide">
       <div class="modal-header">
-        <h2>⚙️ Engraving Settings</h2>
+        <h2>⚙️ Engraving Settings (LaserGRBL Style)</h2>
         <button id="closeSettingsBtn" class="btn-close">✕</button>
       </div>
       <div class="modal-body">
-        <!-- Speed Section -->
-        <div class="settings-group">
-          <h3>Speed</h3>
-          <div class="setting-row">
-            <label for="engravingSpeed">Engraving Speed</label>
-            <input type="number" id="engravingSpeed" value="300" min="10" max="10000" step="10">
-            <span class="unit">mm/min</span>
+        <div class="settings-columns">
+          <!-- Left Column: Image Parameters -->
+          <div class="settings-column">
+            <div class="settings-group">
+              <h3>📷 Image Parameters</h3>
+              <div class="setting-row">
+                <label for="brightness">Brightness</label>
+                <input type="range" id="brightness" value="0" min="-100" max="100" step="1">
+                <span class="value-display" id="brightnessVal">0</span>
+              </div>
+              <div class="setting-row">
+                <label for="contrast">Contrast</label>
+                <input type="range" id="contrast" value="0" min="-100" max="100" step="1">
+                <span class="value-display" id="contrastVal">0</span>
+              </div>
+              <div class="setting-row">
+                <label for="whiteClip">White Clip</label>
+                <input type="range" id="whiteClip" value="5" min="0" max="100" step="1">
+                <span class="value-display" id="whiteClipVal">5%</span>
+              </div>
+            </div>
+            
+            <div class="settings-group">
+              <h3>🔧 Conversion Tool</h3>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="conversionTool" value="line2line" checked>
+                  <span>Line To Line Tracing</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="conversionTool" value="dithering">
+                  <span>1bit BW Dithering</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="conversionTool" value="vectorize" disabled>
+                  <span>Vectorize (coming soon)</span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="settings-group">
+              <h3>📐 Line To Line Options</h3>
+              <div class="setting-row">
+                <label for="direction">Direction</label>
+                <select id="direction">
+                  <option value="horizontal">Horizontal</option>
+                  <option value="vertical">Vertical</option>
+                  <option value="diagonal">Diagonal</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <label for="quality">Quality</label>
+                <input type="number" id="quality" value="8" min="1" max="20" step="0.5">
+                <span class="unit">Lines/mm</span>
+              </div>
+              <div class="setting-row">
+                <label>
+                  <input type="checkbox" id="linePreview">
+                  Line Preview
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <!-- Laser Options Section -->
-        <div class="settings-group">
-          <h3>Laser Options</h3>
-          <div class="setting-row">
-            <label for="laserMode">Laser Mode</label>
-            <select id="laserMode">
-              <option value="M3">M3 - Constant Power</option>
-              <option value="M4">M4 - Dynamic Power</option>
-            </select>
-          </div>
-          <div class="setting-row">
-            <label for="sMin">S-MIN (0-1000)</label>
-            <input type="number" id="sMin" value="0" min="0" max="1000" step="1">
-            <span class="unit" id="sMinPercent">0.0%</span>
-          </div>
-          <div class="setting-row">
-            <label for="sMax">S-MAX (0-1000)</label>
-            <input type="number" id="sMax" value="700" min="0" max="1000" step="1">
-            <span class="unit" id="sMaxPercent">70.0%</span>
-          </div>
-        </div>
-        
-        <!-- Image Size Section -->
-        <div class="settings-group">
-          <h3>Image Size and Position [mm]</h3>
-          <div class="setting-row">
-            <label>
-              <input type="checkbox" id="autoSize" checked>
-              Autosize
-            </label>
-            <input type="number" id="dpi" value="300" min="72" max="1200" step="1">
-            <span class="unit">DPI</span>
-          </div>
-          <div class="setting-row">
-            <label for="sizeW">Width</label>
-            <input type="number" id="sizeW" value="100" min="1" max="500" step="0.1">
-            <span class="unit">mm</span>
-          </div>
-          <div class="setting-row">
-            <label for="sizeH">Height</label>
-            <input type="number" id="sizeH" value="100" min="1" max="500" step="0.1">
-            <span class="unit">mm</span>
-          </div>
-          <div class="setting-row">
-            <label for="offsetX">Offset X</label>
-            <input type="number" id="offsetX" value="0" min="-500" max="500" step="0.1">
-            <span class="unit">mm</span>
-          </div>
-          <div class="setting-row">
-            <label for="offsetY">Offset Y</label>
-            <input type="number" id="offsetY" value="0" min="-500" max="500" step="0.1">
-            <span class="unit">mm</span>
+          
+          <!-- Right Column: Laser & Size -->
+          <div class="settings-column">
+            <div class="settings-group">
+              <h3>🔦 Laser Settings</h3>
+              <div class="setting-row">
+                <label for="engravingSpeed">Mark Speed</label>
+                <input type="number" id="engravingSpeed" value="300" min="10" max="10000" step="10">
+                <span class="unit">mm/min</span>
+              </div>
+              <div class="setting-row">
+                <label for="laserMode">Laser Mode</label>
+                <select id="laserMode">
+                  <option value="M3">M3 - Constant Power</option>
+                  <option value="M4">M4 - Dynamic Power</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <label for="sMin">S-MIN (Laser OFF)</label>
+                <input type="number" id="sMin" value="0" min="0" max="1000" step="1">
+                <span class="unit" id="sMinPercent">0.0%</span>
+              </div>
+              <div class="setting-row">
+                <label for="sMax">S-MAX (Laser ON)</label>
+                <input type="number" id="sMax" value="700" min="0" max="1000" step="1">
+                <span class="unit" id="sMaxPercent">70.0%</span>
+              </div>
+            </div>
+            
+            <div class="settings-group">
+              <h3>📏 Size and Position [mm]</h3>
+              <div class="setting-row">
+                <label>
+                  <input type="checkbox" id="autoSize" checked>
+                  Auto-size (maintain aspect ratio)
+                </label>
+              </div>
+              <div class="setting-row">
+                <label for="sizeW">Width</label>
+                <input type="number" id="sizeW" value="30" min="1" max="500" step="0.1">
+                <span class="unit">mm</span>
+              </div>
+              <div class="setting-row">
+                <label for="sizeH">Height</label>
+                <input type="number" id="sizeH" value="30" min="1" max="500" step="0.1">
+                <span class="unit">mm</span>
+              </div>
+              <div class="setting-row">
+                <label for="offsetX">Offset X</label>
+                <input type="number" id="offsetX" value="0" min="-500" max="500" step="0.1">
+                <span class="unit">mm</span>
+              </div>
+              <div class="setting-row">
+                <label for="offsetY">Offset Y</label>
+                <input type="number" id="offsetY" value="0" min="-500" max="500" step="0.1">
+                <span class="unit">mm</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
