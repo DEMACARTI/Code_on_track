@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>GENGRAV Laser Engraver</title>
+  <title>GENGRAV Laser Engraver - GRBL 1.1</title>
   <link rel="stylesheet" href="index.css">
 </head>
 
@@ -13,7 +13,7 @@
       <div class="brand">
         <span class="logo">⚡</span>
         <h1>GENGRAV</h1>
-        <span class="version">v2.0</span>
+        <span class="version">v2.0 (GRBL 1.1)</span>
       </div>
       <div class="status-bar">
         <div id="connectionStatus" class="connection disconnected">
@@ -26,6 +26,11 @@
           <span>Z: <b id="posZ">0.000</b></span>
         </div>
         <div class="machine-state"><span id="machineState">--</span></div>
+        <!-- GRBL 1.1 Overrides Display -->
+        <div class="overrides">
+          <span title="Feed Override">F:<b id="feedOvr">100</b>%</span>
+          <span title="Spindle/Laser Override">S:<b id="spindleOvr">100</b>%</span>
+        </div>
       </div>
     </header>
 
@@ -42,8 +47,30 @@
             <button id="refreshBtn" class="btn-icon">🔄</button>
           </div>
           <div class="row">
+            <select id="baudSelect">
+              <option value="115200" selected>115200</option>
+              <option value="250000">250000</option>
+              <option value="230400">230400</option>
+              <option value="57600">57600</option>
+              <option value="38400">38400</option>
+              <option value="19200">19200</option>
+              <option value="9600">9600</option>
+            </select>
+            <span class="badge">baud</span>
+          </div>
+          <div class="row">
             <button id="connectBtn" class="btn primary">Connect</button>
             <button id="disconnectBtn" class="btn" disabled>Disconnect</button>
+          </div>
+          <div class="connection-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="dtrReset" checked>
+              <span>DTR/RTS Reset</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="softReset" checked>
+              <span>Soft Reset (Ctrl-X)</span>
+            </label>
           </div>
         </section>
 
@@ -78,17 +105,20 @@
               <label>$101 Y steps/mm</label>
               <input type="number" id="config101" step="0.1" disabled>
             </div>
-            <div class="config-row">
-              <label>$110 X max rate</label>
-              <input type="number" id="config110" step="10" disabled>
+          </div>
+          
+          <!-- Laser Controls -->
+          <div class="laser-controls">
+            <h3>🔦 Laser Test</h3>
+            <div class="row">
+              <button id="laserTestBtn" class="btn sm warning" disabled>Test Fire</button>
+              <button id="laserFocusBtn" class="btn sm" disabled>Focus</button>
+              <button id="laserOffBtn" class="btn sm danger" disabled>OFF</button>
             </div>
             <div class="config-row">
-              <label>$111 Y max rate</label>
-              <input type="number" id="config111" step="10" disabled>
-            </div>
-            <div class="config-row">
-              <label>$30 Max spindle</label>
-              <input type="number" id="config30" step="100" disabled>
+              <label>Power %</label>
+              <input type="range" id="testPower" min="1" max="100" value="5" disabled>
+              <span id="testPowerValue">5%</span>
             </div>
           </div>
         </section>
@@ -119,6 +149,45 @@
         <!-- Emergency -->
         <section class="section">
           <button id="emergencyBtn" class="btn emergency">⚠️ EMERGENCY STOP</button>
+          <div class="row" style="margin-top: 8px;">
+            <button id="unlockBtn" class="btn sm warning" disabled>🔓 Unlock</button>
+            <button id="resetBtn" class="btn sm" disabled>↻ Reset</button>
+          </div>
+        </section>
+        
+        <!-- GRBL 1.1 Overrides -->
+        <section class="section overrides-section">
+          <h2>🎚️ GRBL 1.1 Overrides</h2>
+          <div class="override-control">
+            <label>Feed Rate</label>
+            <div class="override-buttons">
+              <button id="feedMinus10" class="btn sm" disabled title="-10%">-10</button>
+              <button id="feedMinus1" class="btn sm" disabled title="-1%">-1</button>
+              <span id="feedOverrideVal" class="override-val">100%</span>
+              <button id="feedPlus1" class="btn sm" disabled title="+1%">+1</button>
+              <button id="feedPlus10" class="btn sm" disabled title="+10%">+10</button>
+              <button id="feedReset" class="btn sm" disabled title="Reset">↻</button>
+            </div>
+          </div>
+          <div class="override-control">
+            <label>Spindle/Laser</label>
+            <div class="override-buttons">
+              <button id="spindleMinus10" class="btn sm" disabled title="-10%">-10</button>
+              <button id="spindleMinus1" class="btn sm" disabled title="-1%">-1</button>
+              <span id="spindleOverrideVal" class="override-val">100%</span>
+              <button id="spindlePlus1" class="btn sm" disabled title="+1%">+1</button>
+              <button id="spindlePlus10" class="btn sm" disabled title="+10%">+10</button>
+              <button id="spindleReset" class="btn sm" disabled title="Reset">↻</button>
+            </div>
+          </div>
+          <div class="override-control">
+            <label>Rapid</label>
+            <div class="override-buttons">
+              <button id="rapidFull" class="btn sm" disabled>100%</button>
+              <button id="rapid50" class="btn sm" disabled>50%</button>
+              <button id="rapid25" class="btn sm" disabled>25%</button>
+            </div>
+          </div>
         </section>
       </aside>
 

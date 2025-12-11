@@ -455,3 +455,136 @@ input[type="number"] {
   background: var(--bg-hover);
   border-radius: 3px;
 }
+
+/* Connection Options */
+.connection-options {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+/* Laser Controls */
+.laser-controls {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.laser-controls h3 {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.laser-controls .config-row {
+  margin-top: 8px;
+}
+
+.laser-controls input[type="range"] {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  background: var(--bg3);
+  border-radius: 3px;
+  border: none;
+}
+
+.laser-controls input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--warning);
+  cursor: pointer;
+}
+
+.laser-controls input[type="range"]:disabled::-webkit-slider-thumb {
+  background: var(--muted);
+}
+
+/* Machine State Colors */
+.state-idle { color: var(--success); }
+.state-run { color: var(--accent); }
+.state-hold { color: var(--warning); }
+.state-alarm { color: var(--danger); font-weight: bold; }
+.state-jog { color: #14b8a6; }
+
+/* Console warning type */
+.console-line.warning {
+  color: var(--warning);
+}
+
+/* GRBL 1.1 Overrides Display in Header */
+.overrides {
+  display: flex;
+  gap: 12px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 4px 8px;
+  background: var(--bg3);
+  border-radius: 4px;
+}
+
+.overrides b {
+  color: var(--accent);
+}
+
+/* GRBL 1.1 Overrides Section */
+.overrides-section {
+  background: var(--bg3);
+}
+
+.override-control {
+  margin-bottom: 12px;
+}
+
+.override-control label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.override-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.override-buttons .btn.sm {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  min-width: 32px;
+}
+
+.override-val {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--accent);
+  padding: 4px 8px;
+  min-width: 50px;
+  text-align: center;
+  background: var(--bg);
+  border-radius: 4px;
+}

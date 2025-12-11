@@ -1,30 +1,85 @@
 /**
- * Preload - exposes GRBL API to renderer
+ * Preload - exposes GRBL 1.1 API to renderer
+ * Full LaserGRBL-compatible API with GRBL 1.1 features
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('grbl', {
+    // ========== Connection ==========
     listPorts: () => ipcRenderer.invoke('grbl:listPorts'),
-    connect: (p) => ipcRenderer.invoke('grbl:connect', p),
+    connect: (port, baudRate, options) => ipcRenderer.invoke('grbl:connect', { port, baudRate, options }),
     disconnect: () => ipcRenderer.invoke('grbl:disconnect'),
     getState: () => ipcRenderer.invoke('grbl:getState'),
+    getBaudRates: () => ipcRenderer.invoke('grbl:getBaudRates'),
+    getConnectionOptions: () => ipcRenderer.invoke('grbl:getConnectionOptions'),
+    getGrblVersion: () => ipcRenderer.invoke('grbl:getGrblVersion'),
+    
+    // ========== Settings ==========
     readSettings: () => ipcRenderer.invoke('grbl:readSettings'),
     writeSetting: (k, v) => ipcRenderer.invoke('grbl:writeSetting', { key: k, value: v }),
     applyDefaults: () => ipcRenderer.invoke('grbl:applyDefaults'),
     enableLaserMode: () => ipcRenderer.invoke('grbl:enableLaserMode'),
     getDefaults: () => ipcRenderer.invoke('grbl:getDefaults'),
+    
+    // ========== Motion ==========
     home: () => ipcRenderer.invoke('grbl:home'),
+    homeAll: () => ipcRenderer.invoke('grbl:homeAll'),
     goHome: () => ipcRenderer.invoke('grbl:goHome'),
     jog: (a, d, f) => ipcRenderer.invoke('grbl:jog', { axis: a, distance: d, feed: f }),
+    jogCancel: () => ipcRenderer.invoke('grbl:jogCancel'),
     moveTo: (x, y, f) => ipcRenderer.invoke('grbl:moveTo', { x, y, feed: f }),
+    
+    // ========== Commands ==========
     send: (c) => ipcRenderer.invoke('grbl:send', c),
-    laserOn: (p) => ipcRenderer.invoke('grbl:laserOn', p),
-    laserOff: () => ipcRenderer.invoke('grbl:laserOff'),
-    emergencyStop: () => ipcRenderer.invoke('grbl:emergencyStop'),
-    resetEstop: () => ipcRenderer.invoke('grbl:resetEstop'),
     runGCode: (g) => ipcRenderer.invoke('grbl:runGCode', g),
     stop: () => ipcRenderer.invoke('grbl:stop'),
+    
+    // ========== Laser Control ==========
+    laserOn: (p) => ipcRenderer.invoke('grbl:laserOn', p),
+    laserOff: () => ipcRenderer.invoke('grbl:laserOff'),
+    laserTest: (power, duration) => ipcRenderer.invoke('grbl:laserTest', { power, duration }),
+    laserFocus: (p) => ipcRenderer.invoke('grbl:laserFocus', p),
+    
+    // ========== Safety & Control ==========
+    emergencyStop: () => ipcRenderer.invoke('grbl:emergencyStop'),
+    resetEstop: () => ipcRenderer.invoke('grbl:resetEstop'),
+    unlock: () => ipcRenderer.invoke('grbl:unlock'),
+    
+    // ========== GRBL 1.1 Real-time Commands ==========
+    softReset: () => ipcRenderer.invoke('grbl:softReset'),
+    feedHold: () => ipcRenderer.invoke('grbl:feedHold'),
+    cycleStart: () => ipcRenderer.invoke('grbl:cycleStart'),
+    safetyDoor: () => ipcRenderer.invoke('grbl:safetyDoor'),
+    
+    // ========== GRBL 1.1 Feed Overrides ==========
+    feedOverrideReset: () => ipcRenderer.invoke('grbl:feedOverrideReset'),
+    feedOverrideIncrease: (fine) => ipcRenderer.invoke('grbl:feedOverrideIncrease', fine),
+    feedOverrideDecrease: (fine) => ipcRenderer.invoke('grbl:feedOverrideDecrease', fine),
+    
+    // ========== GRBL 1.1 Rapid Overrides ==========
+    rapidOverrideReset: () => ipcRenderer.invoke('grbl:rapidOverrideReset'),
+    rapidOverride50: () => ipcRenderer.invoke('grbl:rapidOverride50'),
+    rapidOverride25: () => ipcRenderer.invoke('grbl:rapidOverride25'),
+    
+    // ========== GRBL 1.1 Spindle/Laser Overrides ==========
+    spindleOverrideReset: () => ipcRenderer.invoke('grbl:spindleOverrideReset'),
+    spindleOverrideIncrease: (fine) => ipcRenderer.invoke('grbl:spindleOverrideIncrease', fine),
+    spindleOverrideDecrease: (fine) => ipcRenderer.invoke('grbl:spindleOverrideDecrease', fine),
+    spindleStop: () => ipcRenderer.invoke('grbl:spindleStop'),
+    
+    // ========== GRBL 1.1 Coolant ==========
+    toggleFloodCoolant: () => ipcRenderer.invoke('grbl:toggleFloodCoolant'),
+    toggleMistCoolant: () => ipcRenderer.invoke('grbl:toggleMistCoolant'),
+    
+    // ========== GRBL 1.1 Info Commands ==========
+    getBuildInfo: () => ipcRenderer.invoke('grbl:getBuildInfo'),
+    getParserState: () => ipcRenderer.invoke('grbl:getParserState'),
+    getStartupBlocks: () => ipcRenderer.invoke('grbl:getStartupBlocks'),
+    setStartupBlock: (index, gcode) => ipcRenderer.invoke('grbl:setStartupBlock', { index, gcode }),
+    toggleCheckMode: () => ipcRenderer.invoke('grbl:toggleCheckMode'),
+    sleep: () => ipcRenderer.invoke('grbl:sleep'),
 
+    // ========== Event Listeners ==========
     onStatus: (cb) => ipcRenderer.on('grbl:status', (_, d) => cb(d)),
     onLog: (cb) => ipcRenderer.on('grbl:log', (_, m) => cb(m)),
     onTx: (cb) => ipcRenderer.on('grbl:tx', (_, c) => cb(c)),
@@ -33,5 +88,8 @@ contextBridge.exposeInMainWorld('grbl', {
     onSettings: (cb) => ipcRenderer.on('grbl:settings', (_, s) => cb(s)),
     onError: (cb) => ipcRenderer.on('grbl:error', (_, e) => cb(e)),
     onEstop: (cb) => ipcRenderer.on('grbl:estop', () => cb()),
-    onComplete: (cb) => ipcRenderer.on('grbl:complete', () => cb())
+    onComplete: (cb) => ipcRenderer.on('grbl:complete', () => cb()),
+    onVersion: (cb) => ipcRenderer.on('grbl:version', (_, v) => cb(v)),
+    onAlarm: (cb) => ipcRenderer.on('grbl:alarm', (_, a) => cb(a)),
+    onMessage: (cb) => ipcRenderer.on('grbl:message', (_, m) => cb(m))
 });
