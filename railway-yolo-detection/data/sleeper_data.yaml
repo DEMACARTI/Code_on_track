@@ -1,0 +1,12 @@
+# Sleeper Detection Dataset
+# Railway Component Detection - Sleeper + Clips
+
+path: /Users/dakshrathore/Desktop/Code_on_track/railway-yolo-detection/data/sleepers-1
+train: train/images
+val: train/images
+test: train/images
+
+nc: 2
+names:
+  0: clips
+  1: sleepers

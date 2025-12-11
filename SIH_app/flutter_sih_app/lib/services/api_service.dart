@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Backend URL - change this to your server IP for physical device
-  static const String baseUrl = 'https://railchinh-mobile-backend.onrender.com';
+  static const String baseUrl = 'http://16.171.32.31:8000';
 
   // Check connection to backend
   Future<Map<String, dynamic>> checkConnection() async {

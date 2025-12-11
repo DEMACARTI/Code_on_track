@@ -19,6 +19,14 @@ from PIL import Image
 import numpy as np
 import base64
 
+# Import inspection pipeline
+try:
+    from pipeline import get_pipeline, InspectionPipeline
+    PIPELINE_AVAILABLE = True
+except ImportError:
+    PIPELINE_AVAILABLE = False
+    print("⚠️ Pipeline module not available")
+
 # Database setup
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -877,6 +885,91 @@ def get_component_classes():
         "classes": _component_class_names,
         "descriptions": COMPONENT_DESCRIPTIONS
     }
+
+# ============================================================================
+# MULTI-MODEL INSPECTION PIPELINE
+# ============================================================================
+
+class InspectionRequest(BaseModel):
+    image_base64: str
+    component_type: Optional[str] = None  # Optional: 'erc', 'sleeper', 'liner', 'rubber_pad'
+
+class InspectionResponse(BaseModel):
+    success: bool
+    component_type: Optional[str] = None
+    component_class: Optional[str] = None
+    detection_confidence: Optional[float] = None
+    condition: Optional[str] = None
+    defects: list = []
+    recommendations: list = []
+    error: Optional[str] = None
+
+@app.post("/api/inspect-component", response_model=InspectionResponse)
+async def inspect_component(request: InspectionRequest):
+    """
+    Multi-model inspection pipeline:
+    1. YOLO detects component type
+    2. ResNet classifies condition/defects
+    
+    Single-component policy: Returns error if multiple components detected.
+    """
+    if not PIPELINE_AVAILABLE:
+        return InspectionResponse(
+            success=False,
+            error="Inspection pipeline not available"
+        )
+    
+    try:
+        # Decode base64 image
+        image_data = base64.b64decode(request.image_base64)
+        
+        # Get pipeline and run inspection
+        pipeline = get_pipeline()
+        result = pipeline.inspect(image_data, request.component_type)
+        
+        if result['success']:
+            return InspectionResponse(
+                success=True,
+                component_type=result.get('component_type'),
+                component_class=result.get('component_class'),
+                detection_confidence=result.get('detection_confidence'),
+                condition=result.get('condition'),
+                defects=result.get('defects', []),
+                recommendations=result.get('recommendations', [])
+            )
+        else:
+            return InspectionResponse(
+                success=False,
+                error=result.get('error', 'Inspection failed')
+            )
+            
+    except Exception as e:
+        return InspectionResponse(
+            success=False,
+            error=f"Inspection error: {str(e)}"
+        )
+
+@app.get("/api/pipeline-status")
+async def get_pipeline_status():
+    """Get status of the multi-model inspection pipeline."""
+    if not PIPELINE_AVAILABLE:
+        return {
+            "available": False,
+            "error": "Pipeline module not imported"
+        }
+    
+    try:
+        pipeline = get_pipeline()
+        status = pipeline.get_status()
+        return {
+            "available": True,
+            **status
+        }
+    except Exception as e:
+        return {
+            "available": False,
+            "error": str(e)
+        }
 
 # Load models on startup
 @app.on_event("startup")
