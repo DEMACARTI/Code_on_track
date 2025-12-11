@@ -1,23 +1,42 @@
 {
-  "name": "engraving-electron-app",
+  "name": "engraving-app",
+  "productName": "engraving-app",
   "version": "1.0.0",
-  "description": "Electron app for the engraving functionalities of the GENGRAV project.",
-  "main": "main.js",
+  "description": "My Electron application description",
+  "main": ".webpack/main",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-packager . engraving-electron-app --platform=darwin,win32,linux --arch=x64 --out=dist --overwrite"
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "echo \"No linting configured\""
   },
-  "author": "DEMACARTI",
+  "keywords": [],
+  "author": {
+    "name": "DEMACARTI",
+    "email": "92006261+DEMACARTI@users.noreply.github.com"
+  },
   "license": "MIT",
   "devDependencies": {
-    "electron": "^26.0.0",
-    "electron-packager": "^17.1.0"
+    "@electron-forge/cli": "^7.10.2",
+    "@electron-forge/maker-deb": "^7.10.2",
+    "@electron-forge/maker-rpm": "^7.10.2",
+    "@electron-forge/maker-squirrel": "^7.10.2",
+    "@electron-forge/maker-zip": "^7.10.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.10.2",
+    "@electron-forge/plugin-fuses": "^7.10.2",
+    "@electron-forge/plugin-webpack": "^7.10.2",
+    "@electron/fuses": "^1.8.0",
+    "@electron/rebuild": "^4.0.2",
+    "@vercel/webpack-asset-relocator-loader": "^1.7.3",
+    "css-loader": "^6.11.0",
+    "electron": "39.2.6",
+    "node-loader": "^2.1.0",
+    "style-loader": "^3.3.4"
   },
   "dependencies": {
-    "axios": "^1.6.0",
-    "dotenv": "^17.2.3",
-    "pg": "^8.16.3",
-    "pngjs": "^7.0.0",
-    "serialport": "^12.0.0"
+    "@serialport/parser-readline": "^13.0.0",
+    "electron-squirrel-startup": "^1.0.1",
+    "serialport": "^13.0.0"
   }
 }

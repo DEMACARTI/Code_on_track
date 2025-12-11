@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>GENGRAV Laser Engraver</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <span class="logo">⚡</span>
+        <h1>GENGRAV</h1>
+        <span class="version">v2.0</span>
+      </div>
+      <div class="status-bar">
+        <div id="connectionStatus" class="connection disconnected">
+          <span class="dot"></span>
+          <span class="text">Disconnected</span>
+        </div>
+        <div class="position">
+          <span>X: <b id="posX">0.000</b></span>
+          <span>Y: <b id="posY">0.000</b></span>
+          <span>Z: <b id="posZ">0.000</b></span>
+        </div>
+        <div class="machine-state"><span id="machineState">--</span></div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Left Panel -->
+      <aside class="panel left-panel">
+        <!-- Connection -->
+        <section class="section">
+          <h2>🔌 Connection</h2>
+          <div class="row">
+            <select id="portSelect">
+              <option value="">Select Port</option>
+            </select>
+            <button id="refreshBtn" class="btn-icon">🔄</button>
+          </div>
+          <div class="row">
+            <button id="connectBtn" class="btn primary">Connect</button>
+            <button id="disconnectBtn" class="btn" disabled>Disconnect</button>
+          </div>
+        </section>
+
+        <!-- GRBL Settings -->
+        <section class="section">
+          <h2>⚙️ GRBL Configuration</h2>
+          <div class="badges">
+            <span id="laserBadge" class="badge">$32: --</span>
+            <span id="versionBadge" class="badge">Ver: --</span>
+          </div>
+          <div class="grid-2">
+            <button id="readSettingsBtn" class="btn sm" disabled>Read</button>
+            <button id="saveSettingsBtn" class="btn sm success" disabled>Save</button>
+            <button id="enableLaserBtn" class="btn sm warning" disabled>Laser Mode</button>
+            <button id="applyDefaultsBtn" class="btn sm" disabled>Defaults</button>
+          </div>
+
+          <!-- Editable GRBL Config -->
+          <div class="grbl-config">
+            <div class="config-row">
+              <label>$22 Homing</label>
+              <select id="config22" disabled>
+                <option value="0">Disabled</option>
+                <option value="1">Enabled</option>
+              </select>
+            </div>
+            <div class="config-row">
+              <label>$100 X steps/mm</label>
+              <input type="number" id="config100" step="0.1" disabled>
+            </div>
+            <div class="config-row">
+              <label>$101 Y steps/mm</label>
+              <input type="number" id="config101" step="0.1" disabled>
+            </div>
+            <div class="config-row">
+              <label>$110 X max rate</label>
+              <input type="number" id="config110" step="10" disabled>
+            </div>
+            <div class="config-row">
+              <label>$111 Y max rate</label>
+              <input type="number" id="config111" step="10" disabled>
+            </div>
+            <div class="config-row">
+              <label>$30 Max spindle</label>
+              <input type="number" id="config30" step="100" disabled>
+            </div>
+          </div>
+        </section>
+
+        <!-- Machine Control -->
+        <section class="section">
+          <h2>🎮 Machine Control</h2>
+          <div class="row">
+            <button id="homeBtn" class="btn" disabled>🏠 Set Home</button>
+            <button id="goHomeBtn" class="btn" disabled>🎯 Go Home</button>
+          </div>
+          <div class="jog-pad">
+            <button id="jogYPlus" class="jog-btn" disabled>▲</button>
+            <div class="jog-row">
+              <button id="jogXMinus" class="jog-btn" disabled>◀</button>
+              <button id="jogCenter" class="jog-btn center" disabled>⌂</button>
+              <button id="jogXPlus" class="jog-btn" disabled>▶</button>
+            </div>
+            <button id="jogYMinus" class="jog-btn" disabled>▼</button>
+            <select id="jogStep" class="jog-step">
+              <option value="0.1">0.1mm</option>
+              <option value="1" selected>1mm</option>
+              <option value="10">10mm</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- Emergency -->
+        <section class="section">
+          <button id="emergencyBtn" class="btn emergency">⚠️ EMERGENCY STOP</button>
+        </section>
+      </aside>
+
+      <!-- Center Panel -->
+      <section class="panel center-panel">
+        <div class="preview-box">
+          <h2>📷 Preview</h2>
+          <div id="preview" class="preview"><span class="hint">Load image to preview</span></div>
+          <input type="file" id="fileInput" accept="image/*" hidden>
+        </div>
+        <div class="actions">
+          <button id="loadImageBtn" class="btn">📂 Load</button>
+          <button id="generateBtn" class="btn primary" disabled>Generate</button>
+          <button id="startBtn" class="btn success" disabled>▶ Start</button>
+          <button id="stopBtn" class="btn danger" disabled>⬛ Stop</button>
+        </div>
+        <div id="progressBox" class="progress-box" hidden>
+          <div class="progress-bar">
+            <div id="progressFill" class="fill"></div>
+          </div>
+          <span id="progressText">0%</span>
+        </div>
+      </section>
+
+      <!-- Right Panel: Console -->
+      <aside class="panel right-panel">
+        <section class="section console-section">
+          <div class="console-header">
+            <h2>💻 Console</h2>
+            <button id="clearConsoleBtn" class="btn-icon">🗑️</button>
+          </div>
+          <div id="console" class="console"></div>
+          <div class="console-input">
+            <input type="text" id="cmdInput" placeholder="G-code">
+            <button id="sendCmdBtn" class="btn sm" disabled>Send</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+</body>
+
+</html>

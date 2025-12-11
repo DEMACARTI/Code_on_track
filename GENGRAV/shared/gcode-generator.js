@@ -1,5 +1,6 @@
 // GENGRAV/shared/gcode-generator.js
 // Purpose: Generate G-code from QR images for laser engraving
+// Uses LaserGRBL-style raster scanning for accurate engraving
 // Author: Antigravity
 
 const https = require('https');
@@ -9,57 +10,150 @@ const path = require('path');
 const { PNG } = require(path.join(__dirname, '../engraving-app/node_modules/pngjs'));
 require('dotenv').config({ path: path.join(__dirname, '../engraving-app/.env') });
 
+/**
+ * Speed presets (mm/min) - LaserGRBL style
+ * Lower speeds = more burn time = darker engraving
+ * Higher speeds = less burn time = lighter engraving
+ */
+const SPEED_PRESETS = {
+  'very_slow': 200,   // Maximum burn - for hard materials
+  'slow': 400,        // Good for detailing
+  'medium': 800,      // Balanced - recommended default
+  'fast': 1200,       // Light engraving
+  'very_fast': 2000   // Very light, quick preview
+};
+
+/**
+ * Intensity/Power presets (0-1000 S-value for GRBL)
+ */
+const INTENSITY_PRESETS = {
+  'very_low': 200,    // 20% power - for sensitive materials
+  'low': 400,         // 40% power
+  'medium': 600,      // 60% power - recommended default
+  'high': 800,        // 80% power
+  'max': 1000         // 100% power - maximum burn
+};
+
 class GCodeGenerator {
   constructor(options = {}) {
-    // Engraving settings from environment or defaults
-    this.size = options.size || parseInt(process.env.ENGRAVE_SIZE_MM) || 250;  // QR code size in mm
-    this.workAreaX = options.workAreaX || parseInt(process.env.ENGRAVE_WORK_AREA_X) || 150;  // Work area X in mm
-    this.workAreaY = options.workAreaY || parseInt(process.env.ENGRAVE_WORK_AREA_Y) || 150;  // Work area Y in mm
-    this.feedRate = options.feedRate || parseInt(process.env.GRBL_FEEDRATE) || 500;  // mm/min
-    this.laserPower = options.laserPower || parseInt(process.env.GRBL_LASER_POWER) || 100;  // 0-1000 for GRBL
-    this.dotSize = options.dotSize || 0.3;  // mm per dot for raster engraving
-    this.passCount = options.passCount || 1;  // Number of passes
+    // QR code size in mm (50-150mm range)
+    this.size = options.size || parseInt(process.env.ENGRAVE_SIZE_MM) || 50;
+    if (this.size < 50) this.size = 50;
+    if (this.size > 150) this.size = 150;
+
+    // Work area limits
+    this.workAreaX = options.workAreaX || parseInt(process.env.ENGRAVE_WORK_AREA_X) || 150;
+    this.workAreaY = options.workAreaY || parseInt(process.env.ENGRAVE_WORK_AREA_Y) || 150;
+
+    // Speed settings (mm/min)
+    this.feedRate = options.feedRate || SPEED_PRESETS[options.speedPreset] ||
+      parseInt(process.env.GRBL_FEEDRATE) || SPEED_PRESETS.medium;
+
+    // Laser power (0-1000 for GRBL S-value)
+    this.laserPower = options.laserPower || INTENSITY_PRESETS[options.intensityPreset] ||
+      parseInt(process.env.GRBL_LASER_POWER) || INTENSITY_PRESETS.medium;
+
+    // Quality settings (lines per mm) - LaserGRBL style
+    // Higher = more lines = better fill but slower
+    // Typical range: 5-20 lines/mm
+    this.linesPerMm = options.linesPerMm || 8;  // 8 lines/mm = 0.125mm spacing
+
+    // Use M4 dynamic mode (recommended for engraving)
+    this.useDynamicMode = options.useDynamicMode !== false;
+
+    // Rapid move speed for non-engraving moves
+    this.rapidSpeed = 3000;  // mm/min
+
+    // Pre-calculate line spacing
+    this.lineSpacing = 1 / this.linesPerMm;  // mm between lines
   }
 
   /**
-   * Clamp coordinate to prevent negative values and stay within work area
+   * Set speed using preset name
+   */
+  setSpeedPreset(presetName) {
+    if (SPEED_PRESETS[presetName]) {
+      this.feedRate = SPEED_PRESETS[presetName];
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Set intensity using preset name
+   */
+  setIntensityPreset(presetName) {
+    if (INTENSITY_PRESETS[presetName]) {
+      this.laserPower = INTENSITY_PRESETS[presetName];
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Set custom speed in mm/min
+   */
+  setSpeed(speedMmMin) {
+    this.feedRate = Math.max(50, Math.min(5000, speedMmMin));
+  }
+
+  /**
+   * Set custom intensity (0-100 percent)
+   */
+  setIntensity(percent) {
+    this.laserPower = Math.round(Math.max(0, Math.min(100, percent)) * 10);
+  }
+
+  /**
+   * Set lines per mm (quality)
+   */
+  setQuality(linesPerMm) {
+    this.linesPerMm = Math.max(2, Math.min(30, linesPerMm));
+    this.lineSpacing = 1 / this.linesPerMm;
+  }
+
+  /**
+   * Clamp coordinate to work area
    */
   clampCoord(val, max) {
     return Math.max(0, Math.min(val, max));
   }
 
-  /**
-   * Format X coordinate (clamped to work area, no negatives)
-   */
   formatX(x) {
     return this.clampCoord(x, this.workAreaX).toFixed(3);
   }
 
-  /**
-   * Format Y coordinate (clamped to work area, no negatives)
-   */
   formatY(y) {
     return this.clampCoord(y, this.workAreaY).toFixed(3);
   }
 
   /**
-   * Generate G-code header for GRBL
+   * Generate G-code header with GRBL 1.1 settings
    */
   generateHeader() {
+    const laserCmd = this.useDynamicMode ? 'M4' : 'M3';
     return [
-      '; Generated by GENGRAV QR Engraver',
+      '; ============================================',
+      '; GENGRAV QR Code Laser Engraving',
+      '; LaserGRBL-style Raster Scanning',
+      '; ============================================',
       `; Date: ${new Date().toISOString()}`,
-      `; Work Area: ${this.workAreaX}mm x ${this.workAreaY}mm`,
-      `; QR Code Size: ${this.size}mm x ${this.size}mm`,
-      `; Laser Power: ${this.laserPower}`,
+      `; QR Size: ${this.size}mm x ${this.size}mm`,
       `; Feed Rate: ${this.feedRate} mm/min`,
-      '; Note: All coordinates clamped to positive values within work area',
+      `; Laser Power: S${this.laserPower} (${(this.laserPower / 10).toFixed(0)}%)`,
+      `; Quality: ${this.linesPerMm} lines/mm (${this.lineSpacing.toFixed(3)}mm spacing)`,
+      `; Laser Mode: ${this.useDynamicMode ? 'M4 Dynamic (recommended)' : 'M3 Constant'}`,
+      ';',
+      '; GRBL Settings Required:',
+      ';   $32=1 (Laser mode enabled)',
+      ';   $30=1000 (Max spindle speed = S1000)',
+      '; ============================================',
       '',
-      'G21 ; Set units to mm',
+      'G21 ; Units: millimeters',
       'G90 ; Absolute positioning',
-      '; Home position should be set before running this G-code',
-      'G0 X0 Y0 ; Move to home/origin',
-      'M5 ; Laser off initially',
+      'G94 ; Feed rate: mm/min',
+      'M5 ; Laser OFF',
+      `G0 X0 Y0 F${this.rapidSpeed} ; Home position`,
       ''
     ].join('\n');
   }
@@ -70,331 +164,66 @@ class GCodeGenerator {
   generateFooter() {
     return [
       '',
-      'M5 ; Laser off',
-      'G0 X0 Y0 ; Return to origin',
-      '; End of engraving',
+      'M5 ; Laser OFF',
+      'G0 X0 Y0 ; Return home',
+      '; Engraving complete',
       ''
     ].join('\n');
   }
 
   /**
-   * Generate G-code for a simple test square
+   * Generate test square for calibration
    */
   generateTestSquare(size = 10) {
-    const commands = [
+    const laserCmd = this.useDynamicMode ? 'M4' : 'M3';
+    return [
       this.generateHeader(),
-      `; Test Square ${size}mm x ${size}mm`,
-      'G0 X0 Y0 ; Move to start',
-      `M3 S${Math.round(this.laserPower * 0.5)} ; Laser on at 50% for test`,
+      `; Test Square: ${size}mm x ${size}mm`,
+      `; Use this to verify size accuracy`,
+      '',
+      'G0 X0 Y0',
+      `${laserCmd} S${Math.round(this.laserPower * 0.5)} ; 50% power for test`,
       `G1 X${size} Y0 F${this.feedRate}`,
       `G1 X${size} Y${size}`,
       `G1 X0 Y${size}`,
       'G1 X0 Y0',
       this.generateFooter()
-    ];
-    return commands.join('\n');
+    ].join('\n');
   }
 
   /**
-   * Generate G-code from a 2D matrix representing QR code
-   * Matrix: 2D array where 1 = black (engrave), 0 = white (skip)
-   */
-  generateFromMatrix(matrix) {
-    if (!matrix || matrix.length === 0) {
-      throw new Error('Invalid QR code matrix');
-    }
-
-    const moduleCount = matrix.length;
-    const moduleSize = this.size / moduleCount;
-    const commands = [this.generateHeader()];
-    
-    commands.push(`; QR Code: ${moduleCount}x${moduleCount} modules`);
-    commands.push(`; Module size: ${moduleSize.toFixed(3)}mm`);
-    commands.push('');
-
-    // Raster-style engraving (row by row)
-    for (let row = 0; row < moduleCount; row++) {
-      const y = row * moduleSize;
-      let inEngrave = false;
-      let engraveStart = 0;
-
-      for (let col = 0; col <= moduleCount; col++) {
-        const isBlack = col < moduleCount && matrix[row][col] === 1;
-        const x = col * moduleSize;
-
-        if (isBlack && !inEngrave) {
-          // Start engraving
-          engraveStart = x;
-          inEngrave = true;
-          commands.push(`G0 X${engraveStart.toFixed(3)} Y${y.toFixed(3)} ; Move to start of module`);
-          commands.push(`M3 S${this.laserPower} ; Laser on`);
-        } else if (!isBlack && inEngrave) {
-          // End engraving - draw to current position
-          commands.push(`G1 X${x.toFixed(3)} Y${y.toFixed(3)} F${this.feedRate} ; Engrave line`);
-          
-          // Fill the module by doing multiple passes within the module height
-          const passes = Math.ceil(moduleSize / this.dotSize);
-          for (let pass = 1; pass < passes; pass++) {
-            const passY = y + (pass * this.dotSize);
-            if (passY < y + moduleSize) {
-              // Alternate direction for each pass
-              if (pass % 2 === 1) {
-                commands.push(`G0 X${x.toFixed(3)} Y${passY.toFixed(3)}`);
-                commands.push(`G1 X${engraveStart.toFixed(3)} Y${passY.toFixed(3)} F${this.feedRate}`);
-              } else {
-                commands.push(`G0 X${engraveStart.toFixed(3)} Y${passY.toFixed(3)}`);
-                commands.push(`G1 X${x.toFixed(3)} Y${passY.toFixed(3)} F${this.feedRate}`);
-              }
-            }
-          }
-          
-          commands.push('M5 ; Laser off');
-          inEngrave = false;
-        }
-      }
-    }
-
-    commands.push(this.generateFooter());
-    return commands.join('\n');
-  }
-
-  /**
-   * Generate G-code from SVG path (simplified - handles basic rectangles for QR codes)
-   * SVG content should be the QR code SVG
-   */
-  generateFromSVG(svgContent) {
-    // Extract viewBox to get dimensions
-    const viewBoxMatch = svgContent.match(/viewBox="([^"]+)"/);
-    let scale = 1;
-    
-    if (viewBoxMatch) {
-      const [, , , vbWidth] = viewBoxMatch[1].split(' ').map(parseFloat);
-      scale = this.size / vbWidth;
-    }
-
-    // Find all rectangles (rect elements) which represent QR modules
-    const rectRegex = /<rect[^>]*x="([^"]+)"[^>]*y="([^"]+)"[^>]*width="([^"]+)"[^>]*height="([^"]+)"[^>]*\/>/g;
-    const rects = [];
-    let match;
-
-    while ((match = rectRegex.exec(svgContent)) !== null) {
-      rects.push({
-        x: parseFloat(match[1]) * scale,
-        y: parseFloat(match[2]) * scale,
-        width: parseFloat(match[3]) * scale,
-        height: parseFloat(match[4]) * scale
-      });
-    }
-
-    // Also try to find path elements with fill (for different QR generators)
-    const pathRegex = /<path[^>]*d="([^"]+)"[^>]*fill="(?!none|white|#fff|#ffffff)[^"]*"[^>]*\/>/gi;
-    while ((match = pathRegex.exec(svgContent)) !== null) {
-      // Parse simple path commands (M, L, H, V, Z)
-      const pathData = match[1];
-      const pathRects = this.parsePathToRects(pathData, scale);
-      rects.push(...pathRects);
-    }
-
-    if (rects.length === 0) {
-      throw new Error('No engraving elements found in SVG');
-    }
-
-    const commands = [this.generateHeader()];
-    commands.push(`; SVG QR Code with ${rects.length} modules`);
-    commands.push('');
-
-    // Sort rectangles by Y then X for efficient engraving
-    rects.sort((a, b) => {
-      if (Math.abs(a.y - b.y) < 0.1) return a.x - b.x;
-      return a.y - b.y;
-    });
-
-    for (const rect of rects) {
-      // Move to position
-      commands.push(`G0 X${rect.x.toFixed(3)} Y${rect.y.toFixed(3)}`);
-      commands.push(`M3 S${this.laserPower}`);
-      
-      // Fill the rectangle with horizontal lines
-      const lineCount = Math.max(1, Math.ceil(rect.height / this.dotSize));
-      for (let i = 0; i < lineCount; i++) {
-        const lineY = rect.y + (i * this.dotSize);
-        if (i % 2 === 0) {
-          commands.push(`G0 X${rect.x.toFixed(3)} Y${lineY.toFixed(3)}`);
-          commands.push(`G1 X${(rect.x + rect.width).toFixed(3)} Y${lineY.toFixed(3)} F${this.feedRate}`);
-        } else {
-          commands.push(`G0 X${(rect.x + rect.width).toFixed(3)} Y${lineY.toFixed(3)}`);
-          commands.push(`G1 X${rect.x.toFixed(3)} Y${lineY.toFixed(3)} F${this.feedRate}`);
-        }
-      }
-      
-      commands.push('M5');
-    }
-
-    commands.push(this.generateFooter());
-    return commands.join('\n');
-  }
-
-  /**
-   * Parse SVG path data to rectangles (simplified for QR codes)
-   */
-  parsePathToRects(pathData, scale = 1) {
-    const rects = [];
-    let currentX = 0;
-    let currentY = 0;
-    let startX = 0;
-    let startY = 0;
-
-    // Simple parser for M, L, H, V, Z commands
-    const commands = pathData.match(/[MLHVZ][^MLHVZ]*/gi) || [];
-    
-    for (const cmd of commands) {
-      const type = cmd[0].toUpperCase();
-      const values = cmd.slice(1).trim().split(/[\s,]+/).map(parseFloat);
-
-      switch (type) {
-        case 'M':
-          currentX = values[0] * scale;
-          currentY = values[1] * scale;
-          startX = currentX;
-          startY = currentY;
-          break;
-        case 'L':
-          currentX = values[0] * scale;
-          currentY = values[1] * scale;
-          break;
-        case 'H':
-          currentX = values[0] * scale;
-          break;
-        case 'V':
-          currentY = values[0] * scale;
-          break;
-        case 'Z':
-          // Close path - if it forms a rectangle, add it
-          const width = Math.abs(currentX - startX);
-          const height = Math.abs(currentY - startY);
-          if (width > 0 && height > 0) {
-            rects.push({
-              x: Math.min(startX, currentX),
-              y: Math.min(startY, currentY),
-              width,
-              height
-            });
-          }
-          break;
-      }
-    }
-
-    return rects;
-  }
-
-  /**
-   * Download SVG from URL and generate G-code
-   * Supports HTTP/HTTPS URLs and data: URLs (base64)
-   */
-  async generateFromURL(url) {
-    // Handle data URLs (base64 encoded)
-    if (url.startsWith('data:')) {
-      return this.generateFromDataURL(url);
-    }
-
-    return new Promise((resolve, reject) => {
-      const client = url.startsWith('https') ? https : http;
-      
-      client.get(url, (response) => {
-        if (response.statusCode !== 200) {
-          reject(new Error(`Failed to download SVG: HTTP ${response.statusCode}`));
-          return;
-        }
-
-        let data = '';
-        response.on('data', chunk => data += chunk);
-        response.on('end', () => {
-          try {
-            const gcode = this.generateFromSVG(data);
-            resolve(gcode);
-          } catch (error) {
-            reject(error);
-          }
-        });
-      }).on('error', reject);
-    });
-  }
-
-  /**
-   * Generate G-code from a data: URL (base64 encoded SVG or PNG)
-   */
-  generateFromDataURL(dataUrl) {
-    // Parse data URL: data:[<mediatype>][;base64],<data>
-    const matches = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,(.+)$/);
-    
-    if (!matches) {
-      throw new Error('Invalid data URL format');
-    }
-
-    const mimeType = matches[1] || '';
-    const base64Data = matches[2];
-    
-    // Decode base64 to Buffer for PNG
-    const buffer = Buffer.from(base64Data, 'base64');
-    
-    if (mimeType.includes('svg') || buffer.toString('utf-8', 0, 100).includes('<svg')) {
-      return this.generateFromSVG(buffer.toString('utf-8'));
-    } else if (mimeType.includes('png') || mimeType.includes('image')) {
-      // Parse PNG and convert to G-code
-      return this.generateFromPNGBuffer(buffer);
-    } else {
-      // Try to parse as SVG anyway
-      try {
-        return this.generateFromSVG(buffer.toString('utf-8'));
-      } catch (e) {
-        // Try as PNG
-        try {
-          return this.generateFromPNGBuffer(buffer);
-        } catch (e2) {
-          console.warn('Could not parse data URL, using test pattern');
-          return this.generateTestSquare(this.size);
-        }
-      }
-    }
-  }
-
-  /**
-   * Generate G-code from a PNG buffer (QR code image)
+   * MAIN METHOD: Generate G-code from PNG buffer using LaserGRBL-style raster scanning
+   * This produces accurate, evenly-spaced fill lines
    */
   generateFromPNGBuffer(buffer) {
     try {
-      // Parse PNG synchronously
       const png = PNG.sync.read(buffer);
       const { width, height, data } = png;
-      
-      console.log(`PNG parsed: ${width}x${height} pixels`);
-      
-      // Convert PNG to binary matrix (1 = black/dark, 0 = white/light)
+
+      console.log(`PNG: ${width}x${height} pixels`);
+
+      // Convert to binary matrix
       const matrix = [];
       for (let y = 0; y < height; y++) {
         const row = [];
         for (let x = 0; x < width; x++) {
-          const idx = (y * width + x) * 4; // RGBA
+          const idx = (y * width + x) * 4;
           const r = data[idx];
           const g = data[idx + 1];
           const b = data[idx + 2];
           const a = data[idx + 3];
-          
-          // Calculate brightness (0-255)
+
+          // Dark pixel = 1 (engrave), Light pixel = 0 (skip)
           const brightness = (r + g + b) / 3;
-          
-          // Consider pixel "dark" if brightness < 128 and alpha > 128
-          const isDark = brightness < 128 && a > 128;
-          row.push(isDark ? 1 : 0);
+          row.push((brightness < 128 && a > 128) ? 1 : 0);
         }
         matrix.push(row);
       }
-      
-      // Find the QR code bounds (remove white border)
-      const bounds = this.findQRBounds(matrix);
-      console.log(`QR bounds: x=${bounds.minX}-${bounds.maxX}, y=${bounds.minY}-${bounds.maxY}`);
-      
-      // Extract just the QR code portion
+
+      // Find QR code bounds
+      const bounds = this.findBounds(matrix);
+
+      // Extract QR code portion
       const qrMatrix = [];
       for (let y = bounds.minY; y <= bounds.maxY; y++) {
         const row = [];
@@ -403,33 +232,156 @@ class GCodeGenerator {
         }
         qrMatrix.push(row);
       }
-      
-      // Detect QR module size (each QR "cell" is typically multiple pixels)
+
+      // Detect module size and downsample
       const moduleSize = this.detectModuleSize(qrMatrix);
-      console.log(`Detected module size: ${moduleSize} pixels`);
-      
-      // Downsample to actual QR modules
-      const moduleMatrix = this.downsampleToModules(qrMatrix, moduleSize);
-      console.log(`QR module matrix: ${moduleMatrix.length}x${moduleMatrix[0]?.length || 0} modules`);
-      
-      // Generate G-code from the module matrix
-      return this.generateFromModuleMatrix(moduleMatrix);
+      const moduleMatrix = this.downsample(qrMatrix, moduleSize);
+
+      console.log(`QR: ${moduleMatrix.length}x${moduleMatrix[0]?.length} modules`);
+
+      // Generate G-code using raster scanning
+      return this.generateRasterGCode(moduleMatrix);
+
     } catch (error) {
-      console.error('Error parsing PNG:', error);
+      console.error('PNG parse error:', error);
       throw error;
     }
   }
 
   /**
-   * Find the bounds of the QR code (excluding white border)
+   * LaserGRBL-style raster G-code generation
+   * 
+   * Key features:
+   * - Row-by-row scanning (top to bottom)
+   * - Bi-directional (zig-zag) for speed
+   * - Continuous laser ON during each row segment
+   * - Consistent line spacing based on linesPerMm
+   * - M4 dynamic mode for even burns during acceleration
    */
-  findQRBounds(matrix) {
+  generateRasterGCode(moduleMatrix) {
+    if (!moduleMatrix || moduleMatrix.length === 0) {
+      throw new Error('Invalid QR module matrix');
+    }
+
+    const rows = moduleMatrix.length;
+    const cols = moduleMatrix[0]?.length || 0;
+    const moduleMm = this.size / Math.max(rows, cols);  // mm per module
+
+    const commands = [this.generateHeader()];
+    const laserCmd = this.useDynamicMode ? 'M4' : 'M3';
+
+    commands.push(`; QR Matrix: ${rows}x${cols} modules`);
+    commands.push(`; Module size: ${moduleMm.toFixed(3)}mm`);
+    commands.push(`; Line spacing: ${this.lineSpacing.toFixed(3)}mm`);
+    commands.push(`; Lines per module: ${Math.ceil(moduleMm / this.lineSpacing)}`);
+    commands.push('');
+
+    // Calculate number of scan lines needed
+    const totalHeight = rows * moduleMm;
+    const numScanLines = Math.ceil(totalHeight / this.lineSpacing);
+
+    commands.push(`; Total scan lines: ${numScanLines}`);
+    commands.push('');
+
+    // Raster scan: line by line
+    for (let lineIdx = 0; lineIdx < numScanLines; lineIdx++) {
+      const y = lineIdx * this.lineSpacing;
+      const moduleRow = Math.floor(y / moduleMm);
+
+      if (moduleRow >= rows) break;
+
+      // Determine scan direction (alternate each line for zig-zag)
+      const leftToRight = (lineIdx % 2) === 0;
+
+      // Find all segments to engrave on this line
+      const segments = this.findEngraveSegments(moduleMatrix[moduleRow], moduleMm, leftToRight);
+
+      if (segments.length === 0) continue;
+
+      const yPos = this.formatY(y);
+
+      // Process each segment
+      for (const seg of segments) {
+        const xStart = this.formatX(seg.start);
+        const xEnd = this.formatX(seg.end);
+
+        // Rapid move to start position
+        commands.push(`G0 X${xStart} Y${yPos} F${this.rapidSpeed}`);
+
+        // Laser ON with power
+        commands.push(`${laserCmd} S${this.laserPower}`);
+
+        // Engrave the segment at feed rate
+        commands.push(`G1 X${xEnd} Y${yPos} F${this.feedRate}`);
+
+        // Laser OFF
+        commands.push('M5');
+      }
+    }
+
+    commands.push(this.generateFooter());
+    return commands.join('\n');
+  }
+
+  /**
+   * Find continuous segments to engrave in a row
+   * Returns array of {start, end} in mm
+   */
+  findEngraveSegments(row, moduleMm, leftToRight) {
+    if (!row || row.length === 0) return [];
+
+    const segments = [];
+    const cols = row.length;
+
+    // Scan direction
+    const startCol = leftToRight ? 0 : cols - 1;
+    const endCol = leftToRight ? cols : -1;
+    const step = leftToRight ? 1 : -1;
+
+    let inSegment = false;
+    let segStart = 0;
+
+    for (let col = startCol; col !== endCol; col += step) {
+      const isBlack = row[col] === 1;
+      const x = col * moduleMm;
+
+      if (isBlack && !inSegment) {
+        // Start new segment
+        segStart = leftToRight ? x : x + moduleMm;
+        inSegment = true;
+      } else if (!isBlack && inSegment) {
+        // End segment
+        const segEnd = leftToRight ? x : x + moduleMm;
+        segments.push({
+          start: Math.min(segStart, segEnd),
+          end: Math.max(segStart, segEnd)
+        });
+        inSegment = false;
+      }
+    }
+
+    // Close final segment if still open
+    if (inSegment) {
+      const finalX = leftToRight ? cols * moduleMm : 0;
+      segments.push({
+        start: Math.min(segStart, finalX),
+        end: Math.max(segStart, finalX)
+      });
+    }
+
+    return segments;
+  }
+
+  /**
+   * Find bounds of QR code in matrix (exclude white border)
+   */
+  findBounds(matrix) {
     const height = matrix.length;
     const width = matrix[0].length;
-    
+
     let minX = width, maxX = 0;
     let minY = height, maxY = 0;
-    
+
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         if (matrix[y][x] === 1) {
@@ -440,190 +392,122 @@ class GCodeGenerator {
         }
       }
     }
-    
-    // Add small margin
-    return {
-      minX: Math.max(0, minX),
-      maxX: Math.min(width - 1, maxX),
-      minY: Math.max(0, minY),
-      maxY: Math.min(height - 1, maxY)
-    };
+
+    return { minX, maxX, minY, maxY };
   }
 
   /**
-   * Detect the size of each QR module in pixels
+   * Detect QR module size in pixels
    */
   detectModuleSize(matrix) {
-    // Look at the top-left finder pattern (7x7 modules)
-    // The first row should have a run of black pixels
     const firstRow = matrix[0] || [];
     let runLength = 0;
-    
+
     for (let x = 0; x < firstRow.length && firstRow[x] === 1; x++) {
       runLength++;
     }
-    
+
+    // QR finder pattern is 7 modules, so run / 7
     if (runLength >= 7) {
-      // The finder pattern outer edge is 7 modules wide
-      // So the run should be 7 * moduleSize pixels
-      const estimated = Math.round(runLength / 7);
-      return Math.max(1, estimated);
+      return Math.max(1, Math.round(runLength / 7));
     }
-    
-    // Alternative: look for transitions and estimate
+
+    // Fallback: estimate from transitions
     let transitions = 0;
-    let lastVal = firstRow[0];
-    for (let x = 1; x < Math.min(100, firstRow.length); x++) {
-      if (firstRow[x] !== lastVal) {
+    let last = firstRow[0];
+    for (let x = 1; x < Math.min(50, firstRow.length); x++) {
+      if (firstRow[x] !== last) {
         transitions++;
-        lastVal = firstRow[x];
+        last = firstRow[x];
       }
     }
-    
-    // Each module is roughly 100 / transitions pixels
-    if (transitions > 0) {
-      return Math.max(1, Math.round(Math.min(100, firstRow.length) / (transitions + 1)));
-    }
-    
-    // Default: assume 1 pixel per module
-    return 1;
+
+    return transitions > 0 ? Math.max(1, Math.round(50 / (transitions + 1))) : 1;
   }
 
   /**
    * Downsample pixel matrix to module matrix
    */
-  downsampleToModules(pixelMatrix, moduleSize) {
+  downsample(pixelMatrix, moduleSize) {
     const pixelHeight = pixelMatrix.length;
     const pixelWidth = pixelMatrix[0]?.length || 0;
-    
+
     const moduleHeight = Math.ceil(pixelHeight / moduleSize);
     const moduleWidth = Math.ceil(pixelWidth / moduleSize);
-    
-    const moduleMatrix = [];
-    
+
+    const result = [];
+
     for (let my = 0; my < moduleHeight; my++) {
       const row = [];
       for (let mx = 0; mx < moduleWidth; mx++) {
-        // Sample the center of each module
+        // Sample center of module
         const px = Math.min(Math.floor(mx * moduleSize + moduleSize / 2), pixelWidth - 1);
         const py = Math.min(Math.floor(my * moduleSize + moduleSize / 2), pixelHeight - 1);
-        
-        // Could also do majority voting within the module area
         row.push(pixelMatrix[py][px]);
       }
-      moduleMatrix.push(row);
+      result.push(row);
     }
-    
-    return moduleMatrix;
+
+    return result;
   }
 
   /**
-   * Generate G-code from a QR module matrix (filled modules)
+   * Generate from data URL (base64)
    */
+  generateFromDataURL(dataUrl) {
+    const matches = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,(.+)$/);
+    if (!matches) {
+      throw new Error('Invalid data URL');
+    }
+
+    const buffer = Buffer.from(matches[2], 'base64');
+    return this.generateFromPNGBuffer(buffer);
+  }
+
+  /**
+   * Generate from URL (HTTP/HTTPS or data URL)
+   */
+  async generateFromURL(url) {
+    if (url.startsWith('data:')) {
+      return this.generateFromDataURL(url);
+    }
+
+    return new Promise((resolve, reject) => {
+      const client = url.startsWith('https') ? https : http;
+
+      client.get(url, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode}`));
+          return;
+        }
+
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('end', () => {
+          try {
+            const buffer = Buffer.concat(chunks);
+            const gcode = this.generateFromPNGBuffer(buffer);
+            resolve(gcode);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }).on('error', reject);
+    });
+  }
+
+  // Legacy methods for compatibility
+  generateFromMatrix(matrix) {
+    return this.generateRasterGCode(matrix);
+  }
+
   generateFromModuleMatrix(matrix) {
-    if (!matrix || matrix.length === 0) {
-      throw new Error('Invalid QR code matrix');
-    }
-
-    const moduleCount = Math.max(matrix.length, matrix[0]?.length || 0);
-    const moduleSize = this.size / moduleCount;  // Size of each module in mm
-    const commands = [this.generateHeader()];
-    
-    commands.push(`; QR Code: ${matrix.length}x${matrix[0]?.length || 0} modules`);
-    commands.push(`; Module size: ${moduleSize.toFixed(3)}mm`);
-    commands.push('; All coordinates are positive (origin at home position)');
-    commands.push('');
-
-    // Engrave using raster/fill pattern for each black module
-    // Use horizontal lines to fill each module for better engraving
-    const lineSpacing = Math.min(this.dotSize, moduleSize / 3);  // Space between fill lines
-    
-    for (let row = 0; row < matrix.length; row++) {
-      for (let col = 0; col < matrix[row].length; col++) {
-        if (matrix[row][col] === 1) {  // Black module
-          const x = col * moduleSize;
-          const y = row * moduleSize;
-          
-          // Skip if coordinates would be negative or outside work area
-          if (x < 0 || y < 0 || x + moduleSize > this.workAreaX || y + moduleSize > this.workAreaY) {
-            continue;
-          }
-          
-          // Fill the module with horizontal lines
-          commands.push(`; Module [${row},${col}]`);
-          
-          let lineY = y;
-          let direction = 1;  // 1 = left to right, -1 = right to left
-          
-          while (lineY < y + moduleSize) {
-            // Use formatX/formatY to ensure positive, clamped coordinates
-            const xStart = this.formatX(x);
-            const xEnd = this.formatX(x + moduleSize);
-            const yPos = this.formatY(lineY);
-            
-            if (direction === 1) {
-              // Move to start without laser
-              commands.push(`G0 X${xStart} Y${yPos}`);
-              // Laser on and draw line
-              commands.push(`M3 S${this.laserPower}`);
-              commands.push(`G1 X${xEnd} Y${yPos} F${this.feedRate}`);
-              commands.push('M5');
-            } else {
-              // Move to start without laser
-              commands.push(`G0 X${xEnd} Y${yPos}`);
-              // Laser on and draw line
-              commands.push(`M3 S${this.laserPower}`);
-              commands.push(`G1 X${xStart} Y${yPos} F${this.feedRate}`);
-              commands.push('M5');
-            }
-            
-            lineY += lineSpacing;
-            direction *= -1;  // Alternate direction for efficiency
-          }
-        }
-      }
-    }
-
-    commands.push(this.generateFooter());
-    return commands.join('\n');
-  }
-
-  /**
-   * Generate outline-only G-code for a QR code (faster but less visible)
-   */
-  generateOutlineFromMatrix(matrix) {
-    if (!matrix || matrix.length === 0) {
-      throw new Error('Invalid QR code matrix');
-    }
-
-    const moduleCount = matrix.length;
-    const moduleSize = this.size / moduleCount;
-    const commands = [this.generateHeader()];
-    
-    commands.push(`; QR Code Outline: ${moduleCount}x${moduleCount} modules`);
-    commands.push('');
-
-    // Draw outline of each black module
-    for (let row = 0; row < moduleCount; row++) {
-      for (let col = 0; col < moduleCount; col++) {
-        if (matrix[row][col] === 1) {
-          const x = col * moduleSize;
-          const y = row * moduleSize;
-          
-          commands.push(`G0 X${x.toFixed(3)} Y${y.toFixed(3)}`);
-          commands.push(`M3 S${this.laserPower}`);
-          commands.push(`G1 X${(x + moduleSize).toFixed(3)} Y${y.toFixed(3)} F${this.feedRate}`);
-          commands.push(`G1 X${(x + moduleSize).toFixed(3)} Y${(y + moduleSize).toFixed(3)}`);
-          commands.push(`G1 X${x.toFixed(3)} Y${(y + moduleSize).toFixed(3)}`);
-          commands.push(`G1 X${x.toFixed(3)} Y${y.toFixed(3)}`);
-          commands.push('M5');
-        }
-      }
-    }
-
-    commands.push(this.generateFooter());
-    return commands.join('\n');
+    return this.generateRasterGCode(matrix);
   }
 }
+
+// Export speed and intensity presets for UI
+GCodeGenerator.SPEED_PRESETS = SPEED_PRESETS;
+GCodeGenerator.INTENSITY_PRESETS = INTENSITY_PRESETS;
 
 module.exports = GCodeGenerator;
