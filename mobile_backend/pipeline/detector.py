@@ -21,16 +21,18 @@ class ComponentDetector:
         'erc': {
             'model_path': 'railway-yolo-detection/models/best.pt',
             'classes': ['elastic_clip_good', 'elastic_clip_missing'],
-            'display_name': 'Elastic Rail Clip'
+            'display_name': 'Elastic Rail Clip',
+            'target_class': None  # Use all classes
         },
         'sleeper': {
             'model_path': 'railway-yolo-detection/models/sleeper_best.pt', 
             'classes': ['clips', 'sleepers'],
-            'display_name': 'Sleeper'
+            'display_name': 'Sleeper',
+            'target_class': 1  # Only detect sleepers (index 1), ignore clips
         }
     }
     
-    def __init__(self, model_type: str = 'erc', confidence_threshold: float = 0.5):
+    def __init__(self, model_type: str = 'erc', confidence_threshold: float = 0.25):
         """
         Initialize the component detector.
         
@@ -116,13 +118,22 @@ class ComponentDetector:
             
             # Parse results
             detections = []
+            config = self.COMPONENT_MODELS.get(self.model_type, {})
+            target_class = config.get('target_class', None)
+            
             for result in results:
                 boxes = result.boxes
                 if boxes is not None:
                     for i, box in enumerate(boxes):
+                        class_id = int(box.cls[0])
+                        
+                        # Filter by target_class if specified
+                        if target_class is not None and class_id != target_class:
+                            continue
+                        
                         detection = {
-                            'class_id': int(box.cls[0]),
-                            'class_name': self.classes[int(box.cls[0])] if int(box.cls[0]) < len(self.classes) else f"class_{int(box.cls[0])}",
+                            'class_id': class_id,
+                            'class_name': self.classes[class_id] if class_id < len(self.classes) else f"class_{class_id}",
                             'confidence': float(box.conf[0]),
                             'bbox': box.xyxy[0].tolist(),  # [x1, y1, x2, y2]
                             'bbox_normalized': box.xywhn[0].tolist()  # [x_center, y_center, w, h] normalized
