@@ -1,6 +1,6 @@
 """
 Mobile Scanning Backend - Simple FastAPI server for RailChinh Flutter App
-With VGG Defect Classification Integration
+With YOLO Detection and Multi-Model Inspection Pipeline
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -201,8 +201,7 @@ DEFECT_REMARKS = {
     'Normal': 'Component appears to be in good condition. No visible defects detected.'
 }
 
-# VGG model removed - now using pipeline with YOLO + ResNet
-# See /api/inspect-component for the new inspection API
+
 
 def load_yolo_model():
     """Load YOLO object detection model on startup"""
@@ -310,84 +309,7 @@ def detect_components(image: Image.Image, conf_threshold: float = 0.25) -> dict:
     except Exception as e:
         raise Exception(f"Detection error: {str(e)}")
 
-def preprocess_image_for_vgg(image: Image.Image) -> np.ndarray:
-    """Preprocess image for VGG model prediction"""
-    # Resize to VGG input size
-    image = image.resize((224, 224))
-    
-    # Convert to RGB if necessary
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
-    
-    # Convert to array and normalize
-    img_array = np.array(image) / 255.0
-    
-    # Add batch dimension
-    img_array = np.expand_dims(img_array, axis=0)
-    
-    return img_array
 
-def predict_defect(image: Image.Image) -> dict:
-    """Predict defect class using VGG model"""
-    global _vgg_model, _class_names
-    
-    if _vgg_model is None:
-        # Try to load model if not already loaded
-        if not load_vgg_model():
-            # Return a fallback response instead of error
-            return {
-                "predicted_class": "Normal",
-                "confidence": 0.0,
-                "status": "Manual inspection required",
-                "remark": "⚠️ AI model unavailable. Please inspect manually.",
-                "all_probabilities": {name: 0.0 for name in _class_names},
-                "model_available": False
-            }
-    
-    try:
-        # Preprocess image
-        img_array = preprocess_image_for_vgg(image)
-        
-        # Make prediction
-        predictions = _vgg_model.predict(img_array, verbose=0)
-        
-        # Get predicted class
-        predicted_idx = np.argmax(predictions[0])
-        predicted_class = _class_names[predicted_idx]
-        confidence = float(predictions[0][predicted_idx])
-        
-        # Get all probabilities
-        all_probs = {
-            class_name: float(prob)
-            for class_name, prob in zip(_class_names, predictions[0])
-        }
-        
-        # CONFIDENCE THRESHOLD: If confidence is below 50%, consider it Normal
-        # This helps prevent false positives from an undertrained model
-        CONFIDENCE_THRESHOLD = 0.50
-        normal_prob = all_probs.get('Normal', 0.0)
-        
-        # If top prediction confidence is low, or Normal has decent probability, classify as Normal
-        if confidence < CONFIDENCE_THRESHOLD or (predicted_class != 'Normal' and normal_prob > 0.25):
-            # Check if Normal class has reasonable probability
-            if normal_prob >= confidence * 0.5:  # Normal is at least half as likely
-                predicted_class = 'Normal'
-                confidence = normal_prob
-        
-        # Generate remark
-        remark = DEFECT_REMARKS.get(predicted_class, "Analysis complete.")
-        
-        return {
-            'predicted_class': predicted_class,
-            'confidence': confidence,
-            'all_probabilities': all_probs,
-            'remark': remark,
-            'status': 'OK',
-            'model_available': True
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 # Routes
 @app.get("/")
@@ -609,142 +531,7 @@ def get_inspections(uid: str):
     finally:
         db.close()
 
-# ============================================================================
-# VGG DEFECT CLASSIFICATION ENDPOINTS
-# ============================================================================
 
-@app.post("/api/classify-defect", response_model=DefectClassificationResponse)
-async def classify_defect(file: UploadFile = File(...)):
-    """
-    Classify railway component defect from uploaded image
-    Returns: Predicted defect class (Rust, Crack, Broken, Damaged, Normal) with confidence
-    """
-    try:
-        # Read image file
-        image_data = await file.read()
-        image = Image.open(io.BytesIO(image_data))
-        
-        # Predict defect
-        result = predict_defect(image)
-        
-        return DefectClassificationResponse(**result)
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
-
-@app.post("/api/classify-defect-base64", response_model=DefectClassificationResponse)
-def classify_defect_base64(request: DefectClassificationRequest):
-    """
-    Classify railway component defect from base64 encoded image
-    Used by mobile app to send captured photos
-    """
-    try:
-        # Decode base64 image
-        image_data = base64.b64decode(request.image_base64)
-        image = Image.open(io.BytesIO(image_data))
-        
-        # Predict defect
-        result = predict_defect(image)
-        
-        return DefectClassificationResponse(**result)
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
-
-@app.post("/qr/inspection-with-ai")
-def submit_inspection_with_ai(
-    qr_id: str,
-    status: str,
-    remark: str,
-    inspector_id: Optional[int] = None,
-    file: Optional[UploadFile] = File(None)
-):
-    """
-    Submit inspection with optional AI classification from photo
-    """
-    db = SessionLocal()
-    try:
-        # Check if item exists
-        item = db.query(Item).filter(Item.uid == qr_id).first()
-        
-        if not item:
-            raise HTTPException(status_code=404, detail="Item not found")
-        
-        ai_classification = None
-        ai_confidence = None
-        
-        # If photo provided, run AI classification
-        if file:
-            try:
-                image_data = file.file.read()
-                image = Image.open(io.BytesIO(image_data))
-                prediction = predict_defect(image)
-                
-                ai_classification = prediction['predicted_class']
-                ai_confidence = prediction['confidence']
-                
-                # Use AI remark if no manual remark provided
-                if not remark or remark.strip() == "":
-                    remark = prediction['remark']
-                    
-            except Exception as e:
-                print(f"AI classification failed: {e}")
-                # Continue without AI classification
-        
-        # Create inspection record
-        inspection = Inspection(
-            item_uid=qr_id,
-            status=status,
-            remark=remark,
-            inspector_id=inspector_id,
-            ai_classification=ai_classification,
-            ai_confidence=ai_confidence,
-            inspected_at=datetime.utcnow()
-        )
-        db.add(inspection)
-        
-        # Update item status based on inspection
-        if status in ["approved", "passed", "ok"]:
-            item.current_status = "inspected"
-        elif status in ["rejected", "failed", "damaged"]:
-            item.current_status = "rejected"
-        else:
-            item.current_status = status
-        
-        item.updated_at = datetime.utcnow()
-        db.commit()
-        
-        return {
-            "success": True,
-            "message": "Inspection submitted successfully",
-            "inspection_id": inspection.id,
-            "item_uid": qr_id,
-            "new_status": item.current_status,
-            "ai_classification": ai_classification,
-            "ai_confidence": ai_confidence
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error saving inspection: {str(e)}")
-    finally:
-        db.close()
-
-@app.get("/api/model-status")
-def get_model_status():
-    """Check if VGG model is loaded and ready"""
-    global _vgg_model
-    
-    is_loaded = _vgg_model is not None
-    
-    return {
-        "model_loaded": is_loaded,
-        "model_type": "VGG16 Transfer Learning" if is_loaded else None,
-        "classes": _class_names if is_loaded else [],
-        "status": "ready" if is_loaded else "not loaded",
-        "message": "Model is ready for predictions" if is_loaded else "Model needs to be trained first"
-    }
 
 # ============================================================================
 # YOLO COMPONENT DETECTION ENDPOINTS

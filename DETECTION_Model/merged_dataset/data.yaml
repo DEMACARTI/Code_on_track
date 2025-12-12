@@ -1,0 +1,15 @@
+names:
+- clip
+- rail
+- bolt
+- broken_rail
+- sleeper
+- correct
+- overrailed
+- underrailed
+- mf
+nc: 9
+path: c:\Users\hp\Downloads\railway-ai-detector\merged_dataset
+test: test/images
+train: train/images
+val: valid/images

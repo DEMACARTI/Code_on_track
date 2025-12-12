@@ -178,7 +178,10 @@ class GRBLController extends EventEmitter {
         this.totalCommands = 0;
         this.completedCommands = 0;
         this.stopRequested = false;
+        this.userRequestedStop = false;  // Track if stop was user-initiated
         this.emergencyStop = false;
+        this.alarmActive = false;  // Track alarm state
+        this.lastOkTime = Date.now();  // Track last successful response for stall detection
         this.maxPower = 1000;  // $30 value
         this.minPower = 0;     // $31 value
         
@@ -348,7 +351,7 @@ class GRBLController extends EventEmitter {
                 });
                 
                 this.port.on('error', (err) => {
-                    this.log(`Port error: ${err.message}`);
+                    this.log(`Port error: ${err.message}`);\n                    console.error('SERIAL PORT ERROR:', err);
                     this.isConnected = false;
                     this.machineState = MachineState.DISCONNECTED;
                     this.emit('error', err);
@@ -356,10 +359,22 @@ class GRBLController extends EventEmitter {
                 });
                 
                 this.port.on('close', () => {
-                    this.log('Port closed');
+                    this.log('Port closed unexpectedly');
                     this.isConnected = false;
                     this.machineState = MachineState.DISCONNECTED;
                     this.stopStatusPolling();
+                    
+                    // Reject all pending commands to unblock runGCode
+                    const pendingCount = this.sentCommands.length + this.commandQueue.length;
+                    if (pendingCount > 0) {
+                        this.log(`Clearing ${pendingCount} pending commands due to disconnect`);
+                        this.sentCommands.forEach(cmd => cmd.reject(new Error('Port disconnected')));
+                        this.commandQueue.forEach(cmd => cmd.reject(new Error('Port disconnected')));
+                        this.sentCommands = [];
+                        this.commandQueue = [];
+                        this.bufferUsed = 0;
+                    }
+                    
                     this.emit('disconnected');
                 });
                 
@@ -416,28 +431,36 @@ class GRBLController extends EventEmitter {
 
         return new Promise((resolve, reject) => {
             const cmdLen = cmd.length + 1;
+            const cmdObj = { cmd, len: cmdLen, resolve, reject, timestamp: Date.now() };
+            
             if (this.bufferUsed + cmdLen > GRBL_RX_BUFFER_SIZE) {
-                this.commandQueue.push({ cmd, resolve, reject });
+                // Queue command if buffer is full
+                this.commandQueue.push(cmdObj);
                 return;
             }
+            
             this.port.write(cmd + '\n');
             this.bufferUsed += cmdLen;
-            this.sentCommands.push({ cmd, len: cmdLen, resolve, reject });
+            this.sentCommands.push(cmdObj);
             this.emit('tx', cmd);
         });
     }
 
     processQueue() {
         while (this.commandQueue.length > 0) {
-            const { cmd, resolve, reject } = this.commandQueue[0];
-            const cmdLen = cmd.length + 1;
+            const cmdObj = this.commandQueue[0];
+            const cmdLen = cmdObj.len;
+            
             if (this.bufferUsed + cmdLen <= GRBL_RX_BUFFER_SIZE) {
                 this.commandQueue.shift();
-                this.port.write(cmd + '\n');
+                cmdObj.timestamp = Date.now();  // Update timestamp when actually sent
+                this.port.write(cmdObj.cmd + '\n');
                 this.bufferUsed += cmdLen;
-                this.sentCommands.push({ cmd, len: cmdLen, resolve, reject });
-                this.emit('tx', cmd);
-            } else break;
+                this.sentCommands.push(cmdObj);
+                this.emit('tx', cmdObj.cmd);
+            } else {
+                break;
+            }
         }
     }
 
@@ -457,6 +480,7 @@ class GRBLController extends EventEmitter {
                 const cmd = this.sentCommands.shift();
                 this.bufferUsed -= cmd.len;
                 this.completedCommands++;
+                this.lastOkTime = Date.now();  // Track last successful response
                 cmd.resolve(true);
                 if (this.totalCommands > 0) {
                     this.emit('progress', {
@@ -479,7 +503,14 @@ class GRBLController extends EventEmitter {
             if (this.sentCommands.length > 0) {
                 const cmd = this.sentCommands.shift();
                 this.bufferUsed -= cmd.len;
-                cmd.reject(new Error(`${line} - ${errorMsg}`));
+                this.lastOkTime = Date.now();  // Error is still a response
+                // Don't reject on errors during G-code run - just log and continue
+                if (this.isRunning) {
+                    this.log(`Skipping error and continuing: ${cmd.cmd}`);
+                    cmd.resolve(false);  // Resolve to continue processing
+                } else {
+                    cmd.reject(new Error(`${line} - ${errorMsg}`));
+                }
             }
             this.emit('error', `${line} - ${errorMsg}`);
             this.processQueue();
@@ -524,9 +555,15 @@ class GRBLController extends EventEmitter {
         if (line.startsWith('ALARM:')) { 
             const alarmCode = line.match(/ALARM:(\d+)/)?.[1];
             const alarmMsg = this.getAlarmMessage(alarmCode);
-            this.machineState = MachineState.ALARM; 
+            this.machineState = MachineState.ALARM;
+            this.alarmActive = true;  // Set alarm flag
             this.log(`ALARM: ${line} - ${alarmMsg}`);
             this.emit('alarm', { code: alarmCode, message: alarmMsg, raw: line }); 
+            
+            // Log warning but don't auto-stop - let user decide
+            if (this.isRunning) {
+                this.log('WARNING: Alarm during G-code - consider stopping if machine has issue');
+            }
         }
 
         // Feedback messages [MSG:...]
@@ -855,6 +892,8 @@ class GRBLController extends EventEmitter {
     async resetEstop() {
         this.emergencyStop = false;
         this.stopRequested = false;
+        this.userRequestedStop = false;
+        this.alarmActive = false;  // Clear alarm flag
         if (this.port?.isOpen) { this.port.write(Buffer.from([0x18])); await this.delay(500); await this.send('$X'); }
         this.startStatusPolling();
         this.log('Reset complete');
@@ -862,21 +901,108 @@ class GRBLController extends EventEmitter {
 
     async runGCode(gcode) {
         if (this.emergencyStop) throw new Error('E-Stop active');
+        if (this.alarmActive) throw new Error('Alarm active - please unlock first ($X)');
+        if (!this.isConnected) throw new Error('Not connected - please connect first');
+        
         const lines = gcode.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith(';'));
         this.totalCommands = lines.length;
         this.completedCommands = 0;
         this.isRunning = true;
-        this.stopRequested = false;
+        this.stopRequested = false;  // Reset at start
+        this.userRequestedStop = false;  // Reset user stop flag
+        this.alarmActive = false;    // Reset at start
+        this.lastOkTime = Date.now();
         this.emit('start', { total: this.totalCommands });
+        
+        this.log(`Starting G-code execution: ${lines.length} commands`);
 
         try {
-            for (const line of lines) { if (this.stopRequested) break; await this.send(line); }
-            while (this.sentCommands.length > 0 && !this.stopRequested) await this.delay(100);
+            for (let i = 0; i < lines.length; i++) {
+                // Check connection before each command
+                if (!this.isConnected) {
+                    this.log('Connection lost during engraving!');
+                    this.emit('error', 'Connection lost during engraving');
+                    break;
+                }
+                
+                // Only stop if explicitly requested by user (stop button) or real emergency
+                if (this.userRequestedStop) {
+                    this.log('User requested stop, halting G-code');
+                    break;
+                }
+                if (this.emergencyStop) {
+                    this.log('Emergency stop active, halting G-code');
+                    break;
+                }
+                
+                // Send command - this will wait if buffer is full
+                try {
+                    await this.send(lines[i]);
+                } catch (err) {
+                    // If connection error, stop the loop
+                    if (err.message.includes('Not connected') || err.message.includes('disconnected')) {
+                        this.log(`Connection error on command ${i}: ${err.message}`);
+                        this.emit('error', 'Connection lost during engraving');
+                        break;
+                    }
+                    this.log(`Error on command ${i}: ${err.message}`);
+                    // Continue for other errors
+                }
+                
+                // Log progress every 100 commands
+                if (i > 0 && i % 100 === 0) {
+                    this.log(`Progress: ${i}/${lines.length} commands sent (${Math.round(i/lines.length*100)}%)`);
+                }
+            }
+            
+            // Only wait if still connected
+            if (this.isConnected && this.sentCommands.length > 0) {
+                this.log(`All ${lines.length} commands sent, waiting for ${this.sentCommands.length} pending...`);
+                
+                // Wait up to 5 minutes for completion
+                let waitCount = 0;
+                const maxWait = 3000;  // 5 minutes max wait (3000 * 100ms)
+                
+                while (this.sentCommands.length > 0 && waitCount < maxWait && this.isConnected) {
+                    if (this.emergencyStop || this.userRequestedStop) {
+                        this.log('Stop during wait');
+                        break;
+                    }
+                    
+                    await this.delay(100);
+                    waitCount++;
+                    
+                    // Log every 30 seconds while waiting
+                    if (waitCount % 300 === 0) {
+                        this.log(`Still waiting... ${this.sentCommands.length} commands pending, ${Math.round(waitCount/10)}s elapsed`);
+                    }
+                }
+                
+                if (!this.isConnected) {
+                    this.log('Connection lost while waiting for completion');
+                } else if (waitCount >= maxWait) {
+                    this.log('Timeout waiting for commands (5 min) - job may have stalled');
+                } else if (this.sentCommands.length === 0) {
+                    this.log('All commands completed successfully!');
+                }
+            }
+            
             this.emit('complete');
-        } finally { this.isRunning = false; }
+        } catch (err) {
+            this.log(`G-code execution error: ${err.message}`);
+            this.emit('error', err.message);
+        } finally {
+            this.isRunning = false;
+            this.userRequestedStop = false;
+            this.log('G-code execution finished');
+        }
     }
 
-    stop() { this.stopRequested = true; }
+    stop() { 
+        this.stopRequested = true; 
+        this.userRequestedStop = true;  // Mark as user-initiated
+        this.log('Stop requested by user');
+    }
     delay(ms) { return new Promise(r => setTimeout(r, ms)); }
     log(msg) { this.emit('log', msg); console.log('[GRBL 1.1]', msg); }
     
@@ -1044,6 +1170,7 @@ class GRBLController extends EventEmitter {
     // Unlock alarm state ($X)
     async unlock() {
         this.log('Unlocking alarm state...');
+        this.alarmActive = false;  // Clear alarm flag
         await this.send('$X');
     }
 
