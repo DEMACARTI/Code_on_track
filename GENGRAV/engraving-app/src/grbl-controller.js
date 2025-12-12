@@ -351,7 +351,8 @@ class GRBLController extends EventEmitter {
                 });
                 
                 this.port.on('error', (err) => {
-                    this.log(`Port error: ${err.message}`);\n                    console.error('SERIAL PORT ERROR:', err);
+                    this.log(`Port error: ${err.message}`);
+                    console.error('SERIAL PORT ERROR:', err);
                     this.isConnected = false;
                     this.machineState = MachineState.DISCONNECTED;
                     this.emit('error', err);
