@@ -1,0 +1,117 @@
+================================================================================
+                    NOTIFICATIONS SYSTEM DIAGNOSIS REPORT
+================================================================================
+Timestamp: 2025-12-12T10:51:00+05:30
+================================================================================
+
+PHASE 1 DIAGNOSTICS COMPLETED
+=============================
+
+1. DATABASE STATE
+-----------------
+From diagnostic snapshot (2025-12-11):
+  - notifications_count: 0  <-- ROOT CAUSE #1: NO DATA IN DB
+  
+DB Schema (notifications table):
+  - id: integer (PK)
+  - bucket: text (NOT NULL) <-- ?? Different from model
+  - total_items: integer (NOT NULL) <-- ?? Different from model  
+  - metadata: jsonb
+  - created_at: timestamp
+  - read: boolean
+  - type: text
+  - title: text
+  - message: text
+  - severity: text
+  - is_read: boolean <-- Note: BOTH 'read' AND 'is_read' exist!
+  
+SQLAlchemy Model expects:
+  - id, item_id, uid, type, severity, title, message
+  - metadata_ (maps to 'metadata' column)
+  - read, dismissed, created_at, updated_at
+
+SCHEMA MISMATCH DETECTED:
+  - Model expects: item_id, uid, dismissed, updated_at
+  - DB has: bucket, total_items, is_read (extra columns)
+  - This may cause ORM errors when querying!
+
+2. BACKEND API ANALYSIS
+-----------------------
+Endpoint: GET /notifications/
+Response format: { "unread_count": int, "notifications": [...] }
+
+Schema returns (NotificationOut):
+  - id, item_id, uid, type, severity, title, message
+  - metadata, read, dismissed, created_at, updated_at
+
+3. FRONTEND ANALYSIS
+--------------------
+API Client (notifications.ts):
+  - getNotifications() expects: Notification[] (array directly)
+  - Notification interface expects: is_read (not 'read')
+  
+NotificationBell.tsx:
+  - Calls getNotifications()
+  - Expects array: Array.isArray(notificationData) ? notificationData : []
+  - Uses: notification.is_read
+
+MISMATCH #2: 
+  - Backend returns: { unread_count, notifications }
+  - Frontend expects: [] (direct array)
+  
+MISMATCH #3:
+  - Backend returns: read (boolean)
+  - Frontend expects: is_read (boolean)
+
+4. NOTIFICATION GENERATOR (manage_notifications.py)
+---------------------------------------------------
+Logic: Generates aggregated expiry notifications based on:
+  - Items with warranty expiring in < 7 days (critical)
+  - Items with warranty expiring in 7-30 days (warning)
+  - Items with warranty expiring in 30-90 days (upcoming)
+  - Already expired items
+
+Status: Job exists but must be run manually (not scheduled)
+Command: python manage_notifications.py
+
+================================================================================
+                          DIAGNOSIS SUMMARY
+================================================================================
+
+ROOT CAUSE (ORDERED BY SEVERITY):
+---------------------------------
+
+1. DATABASE EMPTY - notifications table has 0 rows
+   Impact: No notifications to display regardless of other issues
+   
+2. API RESPONSE FORMAT MISMATCH
+   Backend returns: { "unread_count": N, "notifications": [...] }
+   Frontend expects: [...]
+   Impact: Frontend sees empty array even if data exists
+   
+3. FIELD NAME MISMATCH  
+   Backend field: "read"
+   Frontend field: "is_read"
+   Impact: All notifications would appear as unread even if marked read
+
+4. GENERATOR JOB NOT RUNNING
+   manage_notifications.py is not scheduled/triggered
+   Impact: No automatic notification generation
+
+================================================================================
+                         RECOMMENDED FIXES
+================================================================================
+
+PRIORITY 1 - Seed Demo Notifications
+  Run: python manage_notifications.py 
+  OR insert demo data directly
+
+PRIORITY 2 - Fix Frontend API Client
+  File: frontend/src/api/notifications.ts
+  Change: Extract 'notifications' array from response wrapper
+  
+PRIORITY 3 - Fix Field Mapping
+  Option A: Backend returns is_read instead of read
+  Option B: Frontend maps 'read' to 'is_read'
+  
+================================================================================

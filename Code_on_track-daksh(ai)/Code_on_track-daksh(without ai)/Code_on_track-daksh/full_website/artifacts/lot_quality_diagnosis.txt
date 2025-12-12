@@ -1,0 +1,46 @@
+=== Lot Quality Data Fetch Failure - Diagnosis Report ===
+Generated: 2025-12-12T10:08:00+05:30
+
+================================================================================
+ROOT CAUSE IDENTIFIED: BACKEND SERIALIZATION ERROR
+================================================================================
+
+The endpoint /lot_quality/ returns HTTP 500 Internal Server Error due to:
+
+  "Unable to serialize unknown type: <class 'sqlalchemy.engine.row.RowMapping'>"
+
+EXPLANATION:
+The backend endpoint at backend/app/api/lot_quality.py line 17-18:
+
+  result = await db.execute(text("SELECT * FROM lot_quality LIMIT :limit OFFSET :skip"), ...)
+  return result.mappings().all()
+
+Returns SQLAlchemy RowMapping objects which FastAPI's JSON encoder cannot serialize.
+
+================================================================================
+SECONDARY ISSUE: FIELD NAME MISMATCH
+================================================================================
+
+Even if the serialization is fixed, the frontend expects different field names:
+
+| Frontend expects  | Backend/DB provides  | Action Required |
+|-------------------|----------------------|-----------------|
+| component         | component_type       | Map in backend  |
+| item_count        | total_items          | Map in backend  |
+| failed            | failed_items         | Map in backend  |
+| rate              | failure_rate         | Map in backend  |
+| status            | (missing)            | Compute from is_anomalous/failure_rate |
+| last_inspected    | computed_at          | Map in backend  |
+
+================================================================================
+REQUIRED FIX
+================================================================================
+
+1. Update backend/app/api/lot_quality.py to:
+   a. Convert RowMapping to dict
+   b. Map field names to match frontend expectations
+   c. Compute "status" field from existing data
+
+2. No database changes required (schema has all needed data)
+
+3. No frontend changes required (API contract will be satisfied)

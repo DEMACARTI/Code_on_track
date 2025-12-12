@@ -1,0 +1,43 @@
+Items Visibility Diagnosis
+==========================
+
+1. Current State
+----------------
+- Table `public.items`: 10 rows.
+- Table `backup_items_20251210113831`: 15 rows.
+- User Expectation: ~1250 items.
+
+2. Source of "1250"
+-------------------
+- `lot_quality` table has 125 rows. If each lot represents ~10 items, 125 * 10 = 1250.
+- `seed_data.py` exists but:
+    - Generates only 150 items.
+    - Uses WRONG schema (`lot_number` vs `lot_no`, `current_status` vs `status`).
+    - IT WILL FAIL if run.
+
+3. Frontend Limit
+-----------------
+- Verified `Items.tsx` uses pagination (page size 20).
+- API `/items` supports pagination and returns `total: 10`.
+- Frontend correctly displays what is in DB (10 items).
+
+4. Backups
+----------
+- `qrtrack_2025-12-11.dump`: Contains current state (small).
+- `backup_items_20251210113831`: Contains only 15 rows.
+- No large SQL dump found.
+
+5. Conclusion
+-------------
+- The "1250 items" data is MISSING from `items` table.
+- It is NOT hidden in backups.
+- It likely corresponds to the 125 rows in `lot_quality` (125 * 10 = 1250).
+- `seed_data.py` is OUTDATED (wrong schema, only 150 items).
+
+6. Recommended Action
+---------------------
+- We must **GENERATE** the 1250 items to match the dashboard expectations.
+- I can create `reseed_1250_items.py` to:
+    - Generate 1250 items (10 per lot found in `lot_quality`).
+    - Use correct schema.
+- Action: Reply "APPLY RE_SEED".

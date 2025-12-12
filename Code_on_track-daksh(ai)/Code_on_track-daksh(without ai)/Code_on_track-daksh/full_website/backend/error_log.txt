@@ -1,0 +1,14 @@
+(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column "anomaly_score" of relation "lot_health" does not exist
+[SQL: 
+        INSERT INTO lot_health (lot_no, vendor_id, total_items, failed_items, failure_rate, anomaly_score, health_score, risk_level, computed_at)
+        SELECT lq.lot_no, lq.vendor_id, lq.total_items, lq.failed_items, lq.failure_rate, lq.anomaly_score,
+                GREATEST(0, LEAST(100, ROUND(100 - (lq.failure_rate * 400.0) - (lq.anomaly_score * 40.0) )) )::double precision AS health_score,
+                CASE 
+                    WHEN (ROUND(100 - (lq.failure_rate * 400.0) - (lq.anomaly_score * 40.0)) <= 33) THEN 'CRITICAL' 
+                    WHEN (ROUND(100 - (lq.failure_rate * 400.0) - (lq.anomaly_score * 40.0)) <= 66) THEN 'HIGH' 
+                    ELSE 'MEDIUM' 
+                END AS risk_level,
+                NOW() as computed_at
+        FROM lot_quality lq;
+        ]
+(Background on this error at: https://sqlalche.me/e/20/f405)

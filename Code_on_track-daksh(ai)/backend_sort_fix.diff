@@ -1,0 +1,49 @@
+--- a/backend/routes/lot_health.py
++++ b/backend/routes/lot_health.py
+@@ -1,4 +1,4 @@
+-from flask import Blueprint, jsonify
++from flask import Blueprint, jsonify, request
+ from ml.health_score_job import run_job
+ from sqlalchemy import text
+ from services.db import db
+@@ -8,20 +8,32 @@ lot_health_bp = Blueprint('lot_health', __name__)
+ @lot_health_bp.route('/', methods=['GET'])
+ def get_lot_health():
+     try:
+-        # Try fetching real data first
+-        sql = text("""
++        # Get optional risk_level filter from query params
++        risk_level = request.args.get('risk_level')
++        
++        # Build query with optional filter
++        base_sql = """
+             SELECT 
+                 lot_no, 
+                 component_type, 
+                 health_score, 
+                 risk_level, 
+                 recommended_action, 
+                 next_suggested_inspection_date,
+                 computed_at
+             FROM lot_health
+-            ORDER BY computed_at DESC
+-            LIMIT 50
+-        """)
++        """
++        
++        if risk_level:
++            base_sql += " WHERE risk_level = :risk_level"
++        
++        # Sort by health_score DESC (highest scores first)
++        base_sql += " ORDER BY health_score DESC LIMIT 50"
+         
+-        result = db.session.execute(sql).fetchall()
++        sql = text(base_sql)
++        
++        # Execute with params if filtering, otherwise without
++        if risk_level:
++            result = db.session.execute(sql, {"risk_level": risk_level}).fetchall()
++        else:
++            result = db.session.execute(sql).fetchall()
+         
+         if result:

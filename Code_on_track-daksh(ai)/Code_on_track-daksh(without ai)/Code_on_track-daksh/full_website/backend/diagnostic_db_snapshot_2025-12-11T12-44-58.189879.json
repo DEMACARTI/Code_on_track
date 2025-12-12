@@ -1,0 +1,355 @@
+{
+  "snapshot_path": "diagnostic_db_snapshot_2025-12-11T12-44-58.189879.json",
+  "timestamp": "2025-12-11T12-44-58.189879",
+  "db_schema": {
+    "items": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "uid",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "lot_no",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "component_type",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "vendor_id",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "status",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "manufacture_date",
+        "data_type": "date",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "installation_date",
+        "data_type": "date",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "failure_date",
+        "data_type": "date",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "warranty_months",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "depot",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES"
+      }
+    ],
+    "lot_quality": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "lot_no",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "component_type",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "vendor_id",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "total_items",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "failed_items",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "failure_rate",
+        "data_type": "double precision",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "anomaly_score",
+        "data_type": "double precision",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "is_anomalous",
+        "data_type": "boolean",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "reasons",
+        "data_type": "jsonb",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "computed_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "reason",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "last_updated",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES"
+      }
+    ],
+    "lot_health": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "lot_no",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "component_type",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "vendor_id",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "total_items",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "failed_items",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "failure_rate",
+        "data_type": "double precision",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "health_score",
+        "data_type": "double precision",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "risk_level",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "recommended_action",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "next_suggested_inspection_date",
+        "data_type": "date",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "computed_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES"
+      }
+    ],
+    "vendors": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "vendor_code",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "contact_name",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "contact_email",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "contact_phone",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "component_supplied",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "default_warranty_months",
+        "data_type": "integer",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "address",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "notes",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES"
+      }
+    ],
+    "notifications": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "bucket",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "total_items",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "metadata",
+        "data_type": "jsonb",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "read",
+        "data_type": "boolean",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "type",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "title",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "message",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "severity",
+        "data_type": "text",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "is_read",
+        "data_type": "boolean",
+        "is_nullable": "YES"
+      }
+    ],
+    "history": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "uid",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "event_type",
+        "data_type": "text",
+        "is_nullable": "NO"
+      },
+      {
+        "column_name": "event_data",
+        "data_type": "jsonb",
+        "is_nullable": "YES"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES"
+      }
+    ]
+  },
+  "counts": {
+    "items_count": 1250,
+    "lot_quality_count": 125,
+    "lot_health_count": 125,
+    "vendors_count": 6,
+    "notifications_count": 0,
+    "history_count": 0,
+    "items_lots": 125
+  },
+  "missing_mappings": {
+    "items_without_lot_quality": [],
+    "lot_quality_without_lot_health": []
+  },
+  "backend_routes": [],
+  "scheduler_jobs": [],
+  "frontend_components": [],
+  "diagnostic_summary": ""
+}

@@ -1,0 +1,27 @@
+Data Visibility Diagnosis
+=========================
+
+1. Frontend Configuration
+- Detected `src/api/axios.ts` using `import.meta.env.VITE_API_BASE` or defaulting to `http://localhost:8000`.
+- Verified Backend is running on port 8000.
+- Conclusion: Frontend is correctly pointing to Backend.
+
+2. API Endpoints
+- `/api/db-health`: Returns 200 OK. DB Connected.
+- `/items`: Returns empty list `[]`.
+- `/vendors`: Returns 500 Internal Server Error.
+
+3. Database Rows
+- `vendors`: 6 rows.
+- `items`: 0 rows. (Explains empty items list).
+
+4. Vendors Endpoint Crash (500)
+- Cause: `sqlalchemy.exc.ProgrammingError`.
+- Traceback evidence indicates a Schema Mismatch during the join with `items` table.
+- Prior fix added `contact_info` and `metadata` to `vendors`. These are present.
+- Suspected issue: Subquery aggregation on `items` table columns (`component_type`, `uid`) or `ORDER BY` clause.
+- Recommendation: Since this is a "Diagnostics Only" mission, I am reporting the crash. The fix would involve verifying `items` table definition matches `Item` model exactly, or debugging the subquery logic for empty tables.
+
+5. Summary
+- Items visible? No, because DB is empty (0 items).
+- Vendors visible? No, because API Crashes (500).

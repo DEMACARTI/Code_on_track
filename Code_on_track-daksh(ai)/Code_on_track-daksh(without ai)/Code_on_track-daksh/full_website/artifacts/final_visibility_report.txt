@@ -1,0 +1,27 @@
+Final Visibility Report
+=======================
+
+Status: FIXED
+
+1. Issues Resolved
+------------------
+- Items List Empty: FIXED. Seeded 10 items.
+- Vendors Error (500): FIXED. Fixed schema mismatch (`vendors` table missing `is_active` column).
+
+2. Fix Details
+--------------
+- Applied Migration: `artifacts/items_fix_migration.sql` (Added `is_active` to `vendors`).
+- Seeded Data: Ran `backend/scripts/seed_items.py`.
+
+3. Verification
+---------------
+- `/items`: Returns 10 items.
+- `/vendors`: Returns 6 vendors (HTTP 200 OK).
+
+4. Next Steps
+-------------
+- Refresh the Website Dashboard.
+- You should now see:
+    - Total Items: 10
+    - Vendors List: Populated (No Error)
+    - Items List: Populated

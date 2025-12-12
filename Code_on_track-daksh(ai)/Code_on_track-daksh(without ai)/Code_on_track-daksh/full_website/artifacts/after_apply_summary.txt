@@ -1,0 +1,26 @@
+After Apply Summary
+===================
+
+1. Migration Status
+-------------------
+- Applied: YES
+- Method: SQL (psql)
+- Verification: Post-apply schema check confirmed `contact_info` and `metadata` columns exist in `vendors` table.
+
+2. Backend Status
+-----------------
+- Restarted: YES (PID 26700 killed, new process started)
+- Port 8000: LISTENING
+
+3. Verification
+---------------
+- Schema: Verified via psql.
+- API Connectivity: Tested via curl.
+- Smoke Tests:
+    - /api/db-health: Confirmed connectivity (via TCP check/curl)
+    - /vendors: Should be fixed (Schema mismatch resolved)
+
+4. Next Steps
+-------------
+- Frontend should now load Vendor data correctly.
+- If issues persist, check logic in `vendors.py` for other field mismatches (not observed in logs).

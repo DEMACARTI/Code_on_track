@@ -1,0 +1,40 @@
+--- Columns for lot_health ---
+COLUMN: id | TYPE: integer
+COLUMN: lot_no | TYPE: text
+COLUMN: component_type | TYPE: text
+COLUMN: vendor_id | TYPE: integer
+COLUMN: total_items | TYPE: integer
+COLUMN: failed_items | TYPE: integer
+COLUMN: failure_rate | TYPE: double precision
+COLUMN: health_score | TYPE: double precision
+COLUMN: risk_level | TYPE: text
+COLUMN: recommended_action | TYPE: text
+COLUMN: next_suggested_inspection_date | TYPE: date
+COLUMN: computed_at | TYPE: timestamp without time zone
+COLUMN: anomaly_score | TYPE: double precision
+--- Columns for lot_quality ---
+COLUMN: id | TYPE: integer
+COLUMN: lot_no | TYPE: text
+COLUMN: component_type | TYPE: text
+COLUMN: vendor_id | TYPE: integer
+COLUMN: total_items | TYPE: integer
+COLUMN: failed_items | TYPE: integer
+COLUMN: failure_rate | TYPE: double precision
+COLUMN: anomaly_score | TYPE: double precision
+COLUMN: is_anomalous | TYPE: boolean
+COLUMN: reasons | TYPE: jsonb
+COLUMN: computed_at | TYPE: timestamp without time zone
+COLUMN: reason | TYPE: text
+COLUMN: last_updated | TYPE: timestamp without time zone
+--- Columns for notifications ---
+COLUMN: id | TYPE: integer
+COLUMN: bucket | TYPE: text
+COLUMN: total_items | TYPE: integer
+COLUMN: metadata | TYPE: jsonb
+COLUMN: created_at | TYPE: timestamp without time zone
+COLUMN: read | TYPE: boolean
+COLUMN: type | TYPE: text
+COLUMN: title | TYPE: text
+COLUMN: message | TYPE: text
+COLUMN: severity | TYPE: text
+COLUMN: is_read | TYPE: boolean

@@ -23,16 +23,16 @@ const BAUD_RATES = [115200, 250000, 230400, 57600, 38400, 19200, 9600];
 const DEFAULT_BAUD_RATE = 115200;
 
 const MachineState = {
-    DISCONNECTED: 'Disconnected', 
+    DISCONNECTED: 'Disconnected',
     CONNECTING: 'Connecting',
-    IDLE: 'Idle', 
-    RUN: 'Run', 
+    IDLE: 'Idle',
+    RUN: 'Run',
     HOLD: 'Hold',       // GRBL 1.1: Hold:0 (complete), Hold:1 (in-progress)
     JOG: 'Jog',         // GRBL 1.1 real-time jogging
-    ALARM: 'Alarm', 
+    ALARM: 'Alarm',
     DOOR: 'Door',       // GRBL 1.1: Door:0-3 states
-    CHECK: 'Check', 
-    HOME: 'Home', 
+    CHECK: 'Check',
+    HOME: 'Home',
     SLEEP: 'Sleep',
     QUEUE: 'Queue',
     COOLING: 'Cooling'
@@ -40,28 +40,28 @@ const MachineState = {
 
 // GRBL 1.1 Settings (full list from setting_codes.v1.1.csv)
 const GRBL_SETTINGS = {
-    '$0':   { name: 'Step pulse time', units: 'µs', desc: 'Sets time length per step. Minimum 3usec.', min: 3, max: 255 },
-    '$1':   { name: 'Step idle delay', units: 'ms', desc: 'Sets a short hold delay when stopping. Value 255 keeps motors enabled.', min: 0, max: 255 },
-    '$2':   { name: 'Step pulse invert', units: 'mask', desc: 'Inverts the step signal. Set axis bit to invert (00000ZYX).', min: 0, max: 7 },
-    '$3':   { name: 'Step direction invert', units: 'mask', desc: 'Inverts the direction signal. Set axis bit to invert (00000ZYX).', min: 0, max: 7 },
-    '$4':   { name: 'Invert step enable pin', units: 'bool', desc: 'Inverts the stepper driver enable pin signal.', min: 0, max: 1 },
-    '$5':   { name: 'Invert limit pins', units: 'bool', desc: 'Inverts all of the limit input pins.', min: 0, max: 1 },
-    '$6':   { name: 'Invert probe pin', units: 'bool', desc: 'Inverts the probe input pin signal.', min: 0, max: 1 },
-    '$10':  { name: 'Status report options', units: 'mask', desc: 'Alters data included in status reports.', min: 0, max: 255 },
-    '$11':  { name: 'Junction deviation', units: 'mm', desc: 'Sets how fast Grbl travels through consecutive motions.', min: 0.001, max: 10 },
-    '$12':  { name: 'Arc tolerance', units: 'mm', desc: 'Sets the G2 and G3 arc tracing accuracy based on radial error.', min: 0.001, max: 10 },
-    '$13':  { name: 'Report in inches', units: 'bool', desc: 'Enables inch units when returning position and rate values.', min: 0, max: 1 },
-    '$20':  { name: 'Soft limits enable', units: 'bool', desc: 'Enables soft limits checks within machine travel.', min: 0, max: 1 },
-    '$21':  { name: 'Hard limits enable', units: 'bool', desc: 'Enables hard limits. Immediately halts motion on switch trigger.', min: 0, max: 1 },
-    '$22':  { name: 'Homing cycle enable', units: 'bool', desc: 'Enables homing cycle. Requires limit switches on all axes.', min: 0, max: 1 },
-    '$23':  { name: 'Homing direction invert', units: 'mask', desc: 'Homing searches for switch in positive direction.', min: 0, max: 7 },
-    '$24':  { name: 'Homing locate feed rate', units: 'mm/min', desc: 'Feed rate to slowly engage limit switch.', min: 1, max: 10000 },
-    '$25':  { name: 'Homing search seek rate', units: 'mm/min', desc: 'Seek rate to quickly find the limit switch.', min: 1, max: 10000 },
-    '$26':  { name: 'Homing switch debounce delay', units: 'ms', desc: 'Sets delay between phases of homing cycle.', min: 0, max: 1000 },
-    '$27':  { name: 'Homing switch pull-off distance', units: 'mm', desc: 'Retract distance after triggering switch.', min: 0, max: 100 },
-    '$30':  { name: 'Maximum spindle speed', units: 'RPM', desc: 'Maximum spindle speed. Sets PWM to 100% duty cycle.', min: 0, max: 100000 },
-    '$31':  { name: 'Minimum spindle speed', units: 'RPM', desc: 'Minimum spindle speed. Sets PWM to 0.4% duty cycle.', min: 0, max: 100000 },
-    '$32':  { name: 'Laser mode enable', units: 'bool', desc: 'GRBL 1.1 Laser mode. G1/2/3 commands will not halt when S changes.', min: 0, max: 1 },
+    '$0': { name: 'Step pulse time', units: 'µs', desc: 'Sets time length per step. Minimum 3usec.', min: 3, max: 255 },
+    '$1': { name: 'Step idle delay', units: 'ms', desc: 'Sets a short hold delay when stopping. Value 255 keeps motors enabled.', min: 0, max: 255 },
+    '$2': { name: 'Step pulse invert', units: 'mask', desc: 'Inverts the step signal. Set axis bit to invert (00000ZYX).', min: 0, max: 7 },
+    '$3': { name: 'Step direction invert', units: 'mask', desc: 'Inverts the direction signal. Set axis bit to invert (00000ZYX).', min: 0, max: 7 },
+    '$4': { name: 'Invert step enable pin', units: 'bool', desc: 'Inverts the stepper driver enable pin signal.', min: 0, max: 1 },
+    '$5': { name: 'Invert limit pins', units: 'bool', desc: 'Inverts all of the limit input pins.', min: 0, max: 1 },
+    '$6': { name: 'Invert probe pin', units: 'bool', desc: 'Inverts the probe input pin signal.', min: 0, max: 1 },
+    '$10': { name: 'Status report options', units: 'mask', desc: 'Alters data included in status reports.', min: 0, max: 255 },
+    '$11': { name: 'Junction deviation', units: 'mm', desc: 'Sets how fast Grbl travels through consecutive motions.', min: 0.001, max: 10 },
+    '$12': { name: 'Arc tolerance', units: 'mm', desc: 'Sets the G2 and G3 arc tracing accuracy based on radial error.', min: 0.001, max: 10 },
+    '$13': { name: 'Report in inches', units: 'bool', desc: 'Enables inch units when returning position and rate values.', min: 0, max: 1 },
+    '$20': { name: 'Soft limits enable', units: 'bool', desc: 'Enables soft limits checks within machine travel.', min: 0, max: 1 },
+    '$21': { name: 'Hard limits enable', units: 'bool', desc: 'Enables hard limits. Immediately halts motion on switch trigger.', min: 0, max: 1 },
+    '$22': { name: 'Homing cycle enable', units: 'bool', desc: 'Enables homing cycle. Requires limit switches on all axes.', min: 0, max: 1 },
+    '$23': { name: 'Homing direction invert', units: 'mask', desc: 'Homing searches for switch in positive direction.', min: 0, max: 7 },
+    '$24': { name: 'Homing locate feed rate', units: 'mm/min', desc: 'Feed rate to slowly engage limit switch.', min: 1, max: 10000 },
+    '$25': { name: 'Homing search seek rate', units: 'mm/min', desc: 'Seek rate to quickly find the limit switch.', min: 1, max: 10000 },
+    '$26': { name: 'Homing switch debounce delay', units: 'ms', desc: 'Sets delay between phases of homing cycle.', min: 0, max: 1000 },
+    '$27': { name: 'Homing switch pull-off distance', units: 'mm', desc: 'Retract distance after triggering switch.', min: 0, max: 100 },
+    '$30': { name: 'Maximum spindle speed', units: 'RPM', desc: 'Maximum spindle speed. Sets PWM to 100% duty cycle.', min: 0, max: 100000 },
+    '$31': { name: 'Minimum spindle speed', units: 'RPM', desc: 'Minimum spindle speed. Sets PWM to 0.4% duty cycle.', min: 0, max: 100000 },
+    '$32': { name: 'Laser mode enable', units: 'bool', desc: 'GRBL 1.1 Laser mode. G1/2/3 commands will not halt when S changes.', min: 0, max: 1 },
     '$100': { name: 'X-axis travel resolution', units: 'step/mm', desc: 'X-axis travel resolution in steps per millimeter.', min: 1, max: 10000 },
     '$101': { name: 'Y-axis travel resolution', units: 'step/mm', desc: 'Y-axis travel resolution in steps per millimeter.', min: 1, max: 10000 },
     '$102': { name: 'Z-axis travel resolution', units: 'step/mm', desc: 'Z-axis travel resolution in steps per millimeter.', min: 1, max: 10000 },
@@ -164,6 +164,7 @@ class GRBLController extends EventEmitter {
         this.machineSubState = null;  // GRBL 1.1 substates (Hold:0, Door:1, etc.)
         this.grblVersion = null;
         this.grblVersionFull = null;
+        this.useSyncMode = true;  // Default to sync mode for GRBL 0.9 compatibility
         this.position = { x: 0, y: 0, z: 0 };
         this.workPosition = { x: 0, y: 0, z: 0 };
         this.workCoordinateOffset = { x: 0, y: 0, z: 0 };  // GRBL 1.1 WCO
@@ -184,21 +185,26 @@ class GRBLController extends EventEmitter {
         this.lastOkTime = Date.now();  // Track last successful response for stall detection
         this.maxPower = 1000;  // $30 value
         this.minPower = 0;     // $31 value
-        
+
         // GRBL 1.1 specific state
         this.overrides = { feed: 100, rapid: 100, spindle: 100 };
         this.accessories = { spindle: false, flood: false, mist: false };
         this.plannerBuffer = { blocks: 0, bytes: 0 };
         this.lineNumber = 0;
         this.pins = {};
-        
+
         // Connection options
         this.connectionOptions = { ...CONNECTION_OPTIONS };
-        
+
         // Connection state tracking
         this.welcomeReceived = false;
         this.connectionStartTime = 0;
         this.failedConnections = 0;
+
+        // LaserGRBL-style buffer stuck detection
+        this.lastActivityTime = Date.now();  // Track last RX activity
+        this.grblBufferSize = GRBL_RX_BUFFER_SIZE;  // GRBL's reported buffer size
+        this.bufferStuckCheckInterval = null;
     }
 
     async listPorts() {
@@ -210,7 +216,7 @@ class GRBLController extends EventEmitter {
                 const path = (p.path || '').toLowerCase();
                 const vid = p.vendorId || '';
                 const pid = p.productId || '';
-                
+
                 return (
                     mfr.includes('arduino') ||
                     mfr.includes('ch340') ||
@@ -229,7 +235,7 @@ class GRBLController extends EventEmitter {
                     vid === '2341'     // Arduino vendor ID
                 );
             });
-            
+
             this.log(`Found ${filtered.length} compatible ports`);
             return filtered;
         } catch (e) {
@@ -239,23 +245,36 @@ class GRBLController extends EventEmitter {
         }
     }
 
+    // List ALL serial ports without filtering (useful for Arduino/USB devices not recognized by standard filters)
+    async listAllPorts() {
+        try {
+            const ports = await SerialPort.list();
+            this.log(`Found ${ports.length} total serial ports (unfiltered)`);
+            return ports;
+        } catch (e) {
+            console.error('Error listing all ports:', e);
+            this.emit('error', `Port listing failed: ${e.message}`);
+            return [];
+        }
+    }
+
     async connect(portPath, options = {}) {
         if (this.isConnected) await this.disconnect();
-        
+
         const baudRate = options.baudRate || this.baudRate;
         const dtrOnConnect = options.dtrOnConnect ?? this.connectionOptions.dtrOnConnect;
         const rtsOnConnect = options.rtsOnConnect ?? this.connectionOptions.rtsOnConnect;
         const softResetOnConnect = options.softResetOnConnect ?? this.connectionOptions.softResetOnConnect;
-        
+
         this.machineState = MachineState.CONNECTING;
         this.welcomeReceived = false;
         this.connectionStartTime = Date.now();
-        
+
         return new Promise((resolve, reject) => {
             try {
                 this.log(`Connecting to ${portPath} @ ${baudRate} baud...`);
                 this.log(`Options: DTR=${dtrOnConnect}, RTS=${rtsOnConnect}, SoftReset=${softResetOnConnect}`);
-                
+
                 this.port = new SerialPort({
                     path: portPath,
                     baudRate: baudRate,
@@ -269,7 +288,7 @@ class GRBLController extends EventEmitter {
                     xoff: false,
                     xany: false
                 });
-                
+
                 this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\r\n' }));
                 this.portPath = portPath;
                 this.baudRate = baudRate;
@@ -292,25 +311,25 @@ class GRBLController extends EventEmitter {
                         reject(err);
                         return;
                     }
-                    
+
                     this.log('Port opened successfully');
-                    
+
                     // Set DTR/RTS for hardware reset (like LaserGRBL)
                     if (dtrOnConnect || rtsOnConnect) {
                         this.log('Performing hardware reset (DTR/RTS toggle)...');
-                        this.port.set({ 
-                            dtr: dtrOnConnect, 
-                            rts: rtsOnConnect 
+                        this.port.set({
+                            dtr: dtrOnConnect,
+                            rts: rtsOnConnect
                         }, (err) => {
                             if (err) this.log(`DTR/RTS set warning: ${err.message}`);
                         });
                     }
-                    
+
                     // Clear buffers
                     this.port.flush((err) => {
                         if (err) this.log(`Flush warning: ${err.message}`);
                     });
-                    
+
                     // Send soft reset if enabled (Ctrl-X, 0x18)
                     if (softResetOnConnect) {
                         setTimeout(() => {
@@ -324,7 +343,7 @@ class GRBLController extends EventEmitter {
 
                 this.parser.on('data', (line) => {
                     this.handleResponse(line);
-                    
+
                     // Check for GRBL welcome message
                     if (!this.welcomeReceived && line.includes('Grbl')) {
                         clearTimeout(connectionTimeout);
@@ -334,7 +353,7 @@ class GRBLController extends EventEmitter {
                         this.failedConnections = 0;
                         this.emit('connected');
                         this.log(`Connected! GRBL ${this.grblVersion || 'detected'}`);
-                        
+
                         // Start initialization sequence
                         setTimeout(async () => {
                             try {
@@ -349,7 +368,7 @@ class GRBLController extends EventEmitter {
                         }, this.connectionOptions.waitForStartup);
                     }
                 });
-                
+
                 this.port.on('error', (err) => {
                     this.log(`Port error: ${err.message}`);
                     console.error('SERIAL PORT ERROR:', err);
@@ -358,13 +377,13 @@ class GRBLController extends EventEmitter {
                     this.emit('error', err);
                     reject(err);
                 });
-                
+
                 this.port.on('close', () => {
                     this.log('Port closed unexpectedly');
                     this.isConnected = false;
                     this.machineState = MachineState.DISCONNECTED;
                     this.stopStatusPolling();
-                    
+
                     // Reject all pending commands to unblock runGCode
                     const pendingCount = this.sentCommands.length + this.commandQueue.length;
                     if (pendingCount > 0) {
@@ -375,10 +394,10 @@ class GRBLController extends EventEmitter {
                         this.commandQueue = [];
                         this.bufferUsed = 0;
                     }
-                    
+
                     this.emit('disconnected');
                 });
-                
+
             } catch (e) {
                 this.machineState = MachineState.DISCONNECTED;
                 reject(e);
@@ -391,14 +410,14 @@ class GRBLController extends EventEmitter {
         this.isConnected = false;
         this.machineState = MachineState.DISCONNECTED;
         this.welcomeReceived = false;
-        
+
         if (this.port?.isOpen) {
             return new Promise(resolve => {
                 // Turn off laser before disconnecting
                 try {
                     this.port.write('M5\n');
-                } catch (e) {}
-                
+                } catch (e) { }
+
                 setTimeout(() => {
                     this.port.close((err) => {
                         if (err) this.log(`Disconnect warning: ${err.message}`);
@@ -426,20 +445,96 @@ class GRBLController extends EventEmitter {
         return true;
     }
 
-    async send(cmd) {
+    // Synchronous send - waits for 'ok' before returning (for GRBL 0.9 compatibility)
+    // This is slower but more reliable for older GRBL versions
+    async sendSync(cmd) {
         if (!this.isConnected) throw new Error('Not connected');
         if (this.emergencyStop) throw new Error('Emergency stop active');
 
         return new Promise((resolve, reject) => {
             const cmdLen = cmd.length + 1;
-            const cmdObj = { cmd, len: cmdLen, resolve, reject, timestamp: Date.now() };
-            
-            if (this.bufferUsed + cmdLen > GRBL_RX_BUFFER_SIZE) {
-                // Queue command if buffer is full
+            // Short timeout for GRBL 0.9 - if ok is lost, recover quickly
+            const SYNC_TIMEOUT = 5000; // 5 second timeout
+
+            const timeoutId = setTimeout(() => {
+                const sentIdx = this.sentCommands.findIndex(c => c === cmdObj);
+                if (sentIdx !== -1) {
+                    this.sentCommands.splice(sentIdx, 1);
+                    this.bufferUsed -= cmdLen;
+                    this.log(`Sync timeout, continuing: ${cmd.substring(0, 40)}`);
+                }
+                resolve(false); // Resolve to continue
+            }, SYNC_TIMEOUT);
+
+            const cmdObj = {
+                cmd,
+                len: cmdLen,
+                resolve: (val) => { clearTimeout(timeoutId); resolve(val); },
+                reject: (err) => { clearTimeout(timeoutId); reject(err); },
+                timestamp: Date.now()
+            };
+
+            // For sync mode, wait for buffer to clear before sending
+            // This ensures we only have one command in flight at a time
+            if (this.sentCommands.length > 0) {
+                // Queue it and wait
                 this.commandQueue.push(cmdObj);
                 return;
             }
-            
+
+            // Send immediately
+            this.port.write(cmd + '\n');
+            this.bufferUsed += cmdLen;
+            this.sentCommands.push(cmdObj);
+            this.emit('tx', cmd);
+        });
+    }
+
+    async send(cmd) {
+        if (!this.isConnected) throw new Error('Not connected');
+        if (this.emergencyStop) throw new Error('Emergency stop active');
+
+        // Use synchronous mode for GRBL 0.9 (more reliable, slower)
+        // GRBL 0.9 doesn't reliably report buffer state and can drop 'ok' responses
+        const isGrbl09 = this.grblVersion && this.grblVersion.startsWith('0.9');
+        if (isGrbl09 || this.useSyncMode) {
+            return this.sendSync(cmd);
+        }
+
+        // Buffered mode for GRBL 1.1+ (faster, requires reliable serial)
+        const COMMAND_TIMEOUT = 10000; // 10 second timeout (reduced from 30)
+
+        return new Promise((resolve, reject) => {
+            const cmdLen = cmd.length + 1;
+
+            const timeoutId = setTimeout(() => {
+                const queueIdx = this.commandQueue.findIndex(c => c === cmdObj);
+                if (queueIdx !== -1) {
+                    this.commandQueue.splice(queueIdx, 1);
+                    this.log(`Timeout (queued): ${cmd.substring(0, 30)}`);
+                }
+                const sentIdx = this.sentCommands.findIndex(c => c === cmdObj);
+                if (sentIdx !== -1) {
+                    this.sentCommands.splice(sentIdx, 1);
+                    this.bufferUsed -= cmdLen;
+                    this.log(`Timeout (no ok): ${cmd.substring(0, 30)}`);
+                }
+                resolve(false);
+            }, COMMAND_TIMEOUT);
+
+            const cmdObj = {
+                cmd,
+                len: cmdLen,
+                resolve: (val) => { clearTimeout(timeoutId); resolve(val); },
+                reject: (err) => { clearTimeout(timeoutId); reject(err); },
+                timestamp: Date.now()
+            };
+
+            if (this.bufferUsed + cmdLen > GRBL_RX_BUFFER_SIZE) {
+                this.commandQueue.push(cmdObj);
+                return;
+            }
+
             this.port.write(cmd + '\n');
             this.bufferUsed += cmdLen;
             this.sentCommands.push(cmdObj);
@@ -451,7 +546,7 @@ class GRBLController extends EventEmitter {
         while (this.commandQueue.length > 0) {
             const cmdObj = this.commandQueue[0];
             const cmdLen = cmdObj.len;
-            
+
             if (this.bufferUsed + cmdLen <= GRBL_RX_BUFFER_SIZE) {
                 this.commandQueue.shift();
                 cmdObj.timestamp = Date.now();  // Update timestamp when actually sent
@@ -470,9 +565,9 @@ class GRBLController extends EventEmitter {
         this.emit('rx', line);
 
         // Status report <...>
-        if (line.startsWith('<') && line.endsWith('>')) { 
-            this.parseStatus(line); 
-            return; 
+        if (line.startsWith('<') && line.endsWith('>')) {
+            this.parseStatus(line);
+            return;
         }
 
         // OK response
@@ -482,10 +577,11 @@ class GRBLController extends EventEmitter {
                 this.bufferUsed -= cmd.len;
                 this.completedCommands++;
                 this.lastOkTime = Date.now();  // Track last successful response
+                this.lastActivityTime = Date.now();  // Update for buffer stuck detection
                 cmd.resolve(true);
                 if (this.totalCommands > 0) {
                     this.emit('progress', {
-                        completed: this.completedCommands, 
+                        completed: this.completedCommands,
                         total: this.totalCommands,
                         percent: Math.round((this.completedCommands / this.totalCommands) * 100)
                     });
@@ -500,11 +596,12 @@ class GRBLController extends EventEmitter {
             const errorCode = line.match(/error:(\d+)/)?.[1];
             const errorMsg = this.getErrorMessage(errorCode);
             this.log(`Error: ${line} - ${errorMsg}`);
-            
+
             if (this.sentCommands.length > 0) {
                 const cmd = this.sentCommands.shift();
                 this.bufferUsed -= cmd.len;
                 this.lastOkTime = Date.now();  // Error is still a response
+                this.lastActivityTime = Date.now();  // Update for buffer stuck detection
                 // Don't reject on errors during G-code run - just log and continue
                 if (this.isRunning) {
                     this.log(`Skipping error and continuing: ${cmd.cmd}`);
@@ -527,7 +624,7 @@ class GRBLController extends EventEmitter {
                 this.log(`GRBL Version: ${this.grblVersion}`);
             }
             this.emit('version', this.grblVersion);
-            
+
             // Check for known vendors (Ortur, Longer, etc.)
             if (line.toLowerCase().includes('ortur')) {
                 this.log('Detected Ortur laser');
@@ -545,7 +642,7 @@ class GRBLController extends EventEmitter {
                 const key = `$${m[1]}`;
                 const value = parseFloat(m[2]);
                 this.settings[key] = isNaN(value) ? m[2] : value;
-                
+
                 // Update max/min power from settings
                 if (key === '$30') this.maxPower = value;
                 if (key === '$31') this.minPower = value;
@@ -553,14 +650,14 @@ class GRBLController extends EventEmitter {
         }
 
         // Alarm message
-        if (line.startsWith('ALARM:')) { 
+        if (line.startsWith('ALARM:')) {
             const alarmCode = line.match(/ALARM:(\d+)/)?.[1];
             const alarmMsg = this.getAlarmMessage(alarmCode);
             this.machineState = MachineState.ALARM;
             this.alarmActive = true;  // Set alarm flag
             this.log(`ALARM: ${line} - ${alarmMsg}`);
-            this.emit('alarm', { code: alarmCode, message: alarmMsg, raw: line }); 
-            
+            this.emit('alarm', { code: alarmCode, message: alarmMsg, raw: line });
+
             // Log warning but don't auto-stop - let user decide
             if (this.isRunning) {
                 this.log('WARNING: Alarm during G-code - consider stopping if machine has issue');
@@ -643,7 +740,7 @@ class GRBLController extends EventEmitter {
     parseStatus(report) {
         const content = report.slice(1, -1);
         const parts = content.split('|');
-        
+
         // GRBL 1.1 status can have substates like "Hold:0", "Door:1"
         const stateParts = parts[0].split(':');
         this.machineState = stateParts[0];
@@ -718,19 +815,65 @@ class GRBLController extends EventEmitter {
                 };
             }
         }
-        this.emit('status', { 
-            state: this.machineState, 
+        this.emit('status', {
+            state: this.machineState,
             subState: this.machineSubState,
-            position: this.position, 
+            position: this.position,
             workPosition: this.workPosition,
             workCoordinateOffset: this.workCoordinateOffset,
-            feedRate: this.feedRate, 
+            feedRate: this.feedRate,
             spindleSpeed: this.spindleSpeed,
             overrides: this.overrides,
             accessories: this.accessories,
             plannerBuffer: this.plannerBuffer,
             pins: this.pins
         });
+
+        // LaserGRBL-style: Check for buffer stuck condition after each status report
+        this.handleMissingOK();
+    }
+
+    // LaserGRBL pattern: Detect and auto-unlock from buffer stuck condition
+    // A buffer stuck occurs when we have pending commands waiting for 'ok'
+    // but GRBL reports its buffer is free (meaning it processed them but we missed the 'ok')
+    isBufferStuck() {
+        const hasUnackedCommands = this.sentCommands.length > 0 || this.commandQueue.length > 0;
+        const grblSaysBufferFree = this.plannerBuffer.bytes >= GRBL_RX_BUFFER_SIZE - 10;  // Near full = free
+        const noRecentActivity = (Date.now() - this.lastActivityTime) > 5000;  // 5 seconds no activity
+        const isRunningOrIdle = this.machineState === MachineState.RUN || this.machineState === MachineState.IDLE;
+
+        return hasUnackedCommands && grblSaysBufferFree && noRecentActivity && isRunningOrIdle && this.isRunning;
+    }
+
+    handleMissingOK() {
+        if (this.isBufferStuck()) {
+            const pendingCount = this.sentCommands.length;
+            if (pendingCount > 0) {
+                this.log(`Buffer stuck detected! Creating ${pendingCount} fake OKs to unlock (LaserGRBL pattern)`);
+                this.createFakeOKs(pendingCount);
+            }
+        }
+    }
+
+    // Create fake OK responses for stuck commands
+    createFakeOKs(count) {
+        for (let i = 0; i < count && this.sentCommands.length > 0; i++) {
+            const cmd = this.sentCommands.shift();
+            this.bufferUsed -= cmd.len;
+            this.completedCommands++;
+            this.lastActivityTime = Date.now();
+            cmd.resolve(true);  // Resolve as if 'ok' was received
+
+            if (this.totalCommands > 0) {
+                this.emit('progress', {
+                    completed: this.completedCommands,
+                    total: this.totalCommands,
+                    percent: Math.round((this.completedCommands / this.totalCommands) * 100)
+                });
+            }
+        }
+        this.processQueue();  // Process any queued commands
+        this.log(`Auto-unlocked ${count} commands from buffer stuck`);
     }
 
     startStatusPolling() {
@@ -778,7 +921,7 @@ class GRBLController extends EventEmitter {
 
     async home() { await this.send('G10 L20 P1 X0 Y0 Z0'); this.position = { x: 0, y: 0, z: 0 }; this.log('Home set'); }
     async goHome() { await this.send('G90'); await this.send('G0 X0 Y0'); }
-    
+
     // GRBL 1.1 homing cycle ($H)
     async homeAll() {
         if (this.settings['$22'] !== 1) {
@@ -800,10 +943,10 @@ class GRBLController extends EventEmitter {
             this.log('Jog error: invalid distance');
             return;
         }
-        
+
         // Check GRBL version - use $J= for 1.1+, G91/G0 for 0.9
         const useJogCommand = this.supportsJogCommand();
-        
+
         if (useJogCommand) {
             // GRBL 1.1 jog command format: $J=G91X1.000F500 (no spaces)
             const cmd = `$J=G91${axis}${dist.toFixed(3)}F${feed}`;
@@ -817,7 +960,7 @@ class GRBLController extends EventEmitter {
             await this.send('G90');  // Back to absolute mode
         }
     }
-    
+
     // Check if GRBL supports $J= jog command (1.1+)
     supportsJogCommand() {
         if (!this.grblVersion) return false;  // Assume 0.9 if unknown
@@ -829,7 +972,7 @@ class GRBLController extends EventEmitter {
         }
         return false;
     }
-    
+
     // GRBL 1.1 jog cancel (real-time command 0x85)
     jogCancel() {
         if (this.isConnected && this.port?.isOpen) {
@@ -838,13 +981,13 @@ class GRBLController extends EventEmitter {
         }
     }
 
-    async laserOn(power = 100) { 
+    async laserOn(power = 100) {
         if (this.machineState === MachineState.ALARM) {
             throw new Error('Machine in alarm state - click Unlock first');
         }
         const clampedPower = Math.max(this.minPower, Math.min(power, this.maxPower));
         // M3 = constant laser power, M4 = dynamic (varies with speed)
-        await this.send(`M3 S${clampedPower}`); 
+        await this.send(`M3 S${clampedPower}`);
     }
     async laserOff() { await this.send('M5 S0'); }
 
@@ -904,7 +1047,7 @@ class GRBLController extends EventEmitter {
         if (this.emergencyStop) throw new Error('E-Stop active');
         if (this.alarmActive) throw new Error('Alarm active - please unlock first ($X)');
         if (!this.isConnected) throw new Error('Not connected - please connect first');
-        
+
         const lines = gcode.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith(';'));
         this.totalCommands = lines.length;
         this.completedCommands = 0;
@@ -914,7 +1057,7 @@ class GRBLController extends EventEmitter {
         this.alarmActive = false;    // Reset at start
         this.lastOkTime = Date.now();
         this.emit('start', { total: this.totalCommands });
-        
+
         this.log(`Starting G-code execution: ${lines.length} commands`);
 
         try {
@@ -925,7 +1068,7 @@ class GRBLController extends EventEmitter {
                     this.emit('error', 'Connection lost during engraving');
                     break;
                 }
-                
+
                 // Only stop if explicitly requested by user (stop button) or real emergency
                 if (this.userRequestedStop) {
                     this.log('User requested stop, halting G-code');
@@ -935,7 +1078,7 @@ class GRBLController extends EventEmitter {
                     this.log('Emergency stop active, halting G-code');
                     break;
                 }
-                
+
                 // Send command - this will wait if buffer is full
                 try {
                     await this.send(lines[i]);
@@ -949,36 +1092,36 @@ class GRBLController extends EventEmitter {
                     this.log(`Error on command ${i}: ${err.message}`);
                     // Continue for other errors
                 }
-                
+
                 // Log progress every 100 commands
                 if (i > 0 && i % 100 === 0) {
-                    this.log(`Progress: ${i}/${lines.length} commands sent (${Math.round(i/lines.length*100)}%)`);
+                    this.log(`Progress: ${i}/${lines.length} commands sent (${Math.round(i / lines.length * 100)}%)`);
                 }
             }
-            
+
             // Only wait if still connected
             if (this.isConnected && this.sentCommands.length > 0) {
                 this.log(`All ${lines.length} commands sent, waiting for ${this.sentCommands.length} pending...`);
-                
+
                 // Wait up to 5 minutes for completion
                 let waitCount = 0;
                 const maxWait = 3000;  // 5 minutes max wait (3000 * 100ms)
-                
+
                 while (this.sentCommands.length > 0 && waitCount < maxWait && this.isConnected) {
                     if (this.emergencyStop || this.userRequestedStop) {
                         this.log('Stop during wait');
                         break;
                     }
-                    
+
                     await this.delay(100);
                     waitCount++;
-                    
+
                     // Log every 30 seconds while waiting
                     if (waitCount % 300 === 0) {
-                        this.log(`Still waiting... ${this.sentCommands.length} commands pending, ${Math.round(waitCount/10)}s elapsed`);
+                        this.log(`Still waiting... ${this.sentCommands.length} commands pending, ${Math.round(waitCount / 10)}s elapsed`);
                     }
                 }
-                
+
                 if (!this.isConnected) {
                     this.log('Connection lost while waiting for completion');
                 } else if (waitCount >= maxWait) {
@@ -987,7 +1130,7 @@ class GRBLController extends EventEmitter {
                     this.log('All commands completed successfully!');
                 }
             }
-            
+
             this.emit('complete');
         } catch (err) {
             this.log(`G-code execution error: ${err.message}`);
@@ -999,24 +1142,24 @@ class GRBLController extends EventEmitter {
         }
     }
 
-    stop() { 
-        this.stopRequested = true; 
+    stop() {
+        this.stopRequested = true;
         this.userRequestedStop = true;  // Mark as user-initiated
         this.log('Stop requested by user');
     }
     delay(ms) { return new Promise(r => setTimeout(r, ms)); }
     log(msg) { this.emit('log', msg); console.log('[GRBL 1.1]', msg); }
-    
-    getState() { 
-        return { 
-            connected: this.isConnected, 
+
+    getState() {
+        return {
+            connected: this.isConnected,
             state: this.machineState,
             subState: this.machineSubState,
-            position: this.position, 
+            position: this.position,
             workPosition: this.workPosition,
             workCoordinateOffset: this.workCoordinateOffset,
-            settings: this.settings, 
-            version: this.grblVersion, 
+            settings: this.settings,
+            version: this.grblVersion,
             versionFull: this.grblVersionFull,
             laserMode: this.isLaserModeEnabled(),
             maxPower: this.maxPower,
@@ -1027,12 +1170,12 @@ class GRBLController extends EventEmitter {
             accessories: this.accessories,
             plannerBuffer: this.plannerBuffer,
             pins: this.pins
-        }; 
+        };
     }
 
     // ========== GRBL 1.1 Real-time Commands ==========
     // These bypass the command queue and execute immediately
-    
+
     feedHold() {
         if (this.port?.isOpen) {
             this.port.write(REALTIME_COMMANDS.FEED_HOLD);
@@ -1180,13 +1323,13 @@ class GRBLController extends EventEmitter {
         await this.send('$C');
         this.log('Check mode toggled');
     }
-    
+
     // Sleep mode - GRBL 1.1 ($SLP)
     async sleep() {
         await this.send('$SLP');
         this.log('Sleep mode activated');
     }
-    
+
     // Get build info
     async getBuildInfo() {
         return new Promise((resolve) => {
@@ -1196,17 +1339,17 @@ class GRBLController extends EventEmitter {
                 if (line.startsWith('[') && !line.startsWith('[MSG:')) {
                     buildInfo.push(line);
                 }
-                if (line === 'ok') { 
-                    clearTimeout(timeout); 
-                    this.parser.off('data', onData); 
-                    resolve(buildInfo.join('\n')); 
+                if (line === 'ok') {
+                    clearTimeout(timeout);
+                    this.parser.off('data', onData);
+                    resolve(buildInfo.join('\n'));
                 }
             };
             this.parser.on('data', onData);
             this.sendRaw('$I');
         });
     }
-    
+
     // Get parser state
     async getParserState() {
         return new Promise((resolve) => {
@@ -1223,7 +1366,7 @@ class GRBLController extends EventEmitter {
             this.sendRaw('$G');
         });
     }
-    
+
     // GRBL 1.1 startup blocks
     async getStartupBlocks() {
         return new Promise((resolve) => {
@@ -1233,17 +1376,17 @@ class GRBLController extends EventEmitter {
                 if (line.startsWith('$N')) {
                     blocks.push(line);
                 }
-                if (line === 'ok') { 
-                    clearTimeout(timeout); 
-                    this.parser.off('data', onData); 
-                    resolve(blocks); 
+                if (line === 'ok') {
+                    clearTimeout(timeout);
+                    this.parser.off('data', onData);
+                    resolve(blocks);
                 }
             };
             this.parser.on('data', onData);
             this.sendRaw('$N');
         });
     }
-    
+
     // Set startup block (0 or 1)
     async setStartupBlock(index, gcode) {
         await this.send(`$N${index}=${gcode}`);
@@ -1251,12 +1394,12 @@ class GRBLController extends EventEmitter {
     }
 }
 
-module.exports = { 
-    GRBLController, 
-    MachineState, 
-    GRBL_SETTINGS, 
-    LASER_DEFAULTS, 
-    BAUD_RATES, 
+module.exports = {
+    GRBLController,
+    MachineState,
+    GRBL_SETTINGS,
+    LASER_DEFAULTS,
+    BAUD_RATES,
     CONNECTION_OPTIONS,
     REALTIME_COMMANDS,
     GRBL_VERSION

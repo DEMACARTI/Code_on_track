@@ -1,0 +1,35 @@
+=== Frontend Lot Quality Analysis ===
+Generated: 2025-12-12T10:08:00+05:30
+
+== Component Location ==
+File: frontend/src/pages/LotQuality.tsx
+
+== API Route Called ==
+api.get('/lot_quality/')
+(Uses axios instance at frontend/src/api/axios.ts)
+
+== Expected JSON Structure (LotQualityData interface) ==
+{
+  lot_no: string;
+  component: string;        // MISMATCH: DB has "component_type"
+  vendor_id: number;
+  item_count: number;       // MISMATCH: DB has "total_items"
+  failed: number;           // MISMATCH: DB has "failed_items"
+  rate: number;             // MISMATCH: DB has "failure_rate"
+  anomaly_score: number;    // OK
+  reason: string;           // OK
+  status: string;           // MISSING: DB doesn't have this
+  last_inspected: string;   // MISMATCH: DB has "computed_at" or "last_updated"
+}
+
+== Error Handling ==
+- Shows error message: "Error loading lot quality data" with AlertTriangle icon
+- Error condition triggered when useQuery returns error state
+
+== Field Mapping Issues ==
+1. Frontend expects "component", DB has "component_type"
+2. Frontend expects "item_count", DB has "total_items"
+3. Frontend expects "failed", DB has "failed_items"
+4. Frontend expects "rate", DB has "failure_rate"
+5. Frontend expects "status" which doesn't exist in DB
+6. Frontend expects "last_inspected", DB has "computed_at" or "last_updated"

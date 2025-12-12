@@ -1,0 +1,43 @@
+# Demo Seed Generation Plan
+
+## 1. Vendors (6 Entities)
+- **TechRail Solutions** (Reliability: 98%)
+- **Global Track Systems** (Reliability: 92%)
+- **Metro Build Corp** (Reliability: 88%)
+- **RapidRail Parts** (Reliability: 95%)
+- **SteelWorks Intl** (Reliability: 85%)
+- **InfraCore Ltd** (Reliability: 99%)
+
+## 2. Items (1500 Total)
+- **Types**: ERC (60%), Sleeper (20%), Rail Pad (10%), Liner (10%)
+- **Status Dist**:
+  - `installed`: 60%
+  - `manufactured`: 30%
+  - `in_transit`: 5%
+  - `failed`: 5%
+- **Dates**: Distributed over last 60 days.
+
+## 3. Lots & Health (125 Lots)
+- **Aggregates**:
+  - **CRITICAL**: 7 Lots (Mapped to Dashboard '7')
+  - **HIGH**: 20 Lots
+  - **MEDIUM**: ~98 Lots
+- **Distribution Logic**:
+  - Critical lots have > 5% failure rate in items.
+  - High lots have 2-5% failure rate.
+  - Medium lots have < 2% failure rate.
+- **Mapping**: Each item assigned to a Lot No (e.g., `LOT-2023-001`).
+
+## 4. Lot Quality (Samples)
+- Random samples for each lot.
+- Critical lots get poor dimension stats.
+- Good lots get near-perfect stats.
+
+## 5. Dashboard Consistency Enforcement
+- **Constraint**: `count(distinct lot_no) WHERE risk_level='CRITICAL'` MUST be exactly 7.
+- **Backend Fix Strategy**: Revert `analytics.py` to count only CRITICAL.
+- **Frontend Strategy**: Keep `DashboardCriticalCount` component for added safety.
+
+## 6. Notifications
+- 10 sample notifications (Low/Medium/High severity).
+- Recent timestamps.

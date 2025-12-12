@@ -1,0 +1,40 @@
+=== Database Lot Quality State ===
+Generated: 2025-12-12T10:08:00+05:30
+
+== Table Row Counts ==
+lot_quality: 250 rows
+lot_health: 250 rows
+items: 2815 rows
+vendors: 12 rows
+
+== lot_quality Table Schema ==
+  id: integer
+  lot_no: text
+  component_type: text
+  vendor_id: integer
+  total_items: integer
+  failed_items: integer
+  failure_rate: double precision
+  anomaly_score: double precision
+  is_anomalous: boolean
+  reasons: jsonb
+  computed_at: timestamp without time zone
+  reason: text
+  last_updated: timestamp without time zone
+
+== Sample Data ==
+{
+  "id": 3608,
+  "lot_no": "LOT-2024-001",
+  "component_type": "Rail Pad",
+  "vendor_id": 26,
+  "total_items": 14,
+  "failed_items": 0,
+  "failure_rate": 0.0,
+  "anomaly_score": 0.02,
+  "is_anomalous": false,
+  "reasons": null,
+  "computed_at": "2025-12-11T21:26:25.452349",
+  "reason": null,
+  "last_updated": "2025-12-11T21:26:25.452349"
+}

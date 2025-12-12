@@ -1,0 +1,22 @@
+# Dashboard Zero Diagnosis
+
+## Symptom
+All dashboard tiles (Total Items, Critical Lots, Analyzed Lots, Active Vendors) show 0 or blank.
+
+## Investigation
+1. **Frontend Config**: `src/api/axios.ts` points to `http://localhost:8000` (Default). Correct.
+2. **Backend Status**: Checked port 8000 using `netstat`.
+   - **Result**: No process listening.
+   - **Root Cause**: The backend server is DOWN. It was terminated during the previous troubleshooting session and not successfully restarted.
+
+## Additional Findings
+- The `DashboardCriticalCount` component (added in a previous patch) intercepts the "Critical Lots" tile and manually updates its DOM content.
+- While the primary cause of "All Zeros" is the backend being offline, `DashboardCriticalCount` overrides the dashboard's native data flow for the "Critical Lots" metric.
+- To fully restore detailed dashboard behavior (including the aggregate count of 52 the user requested earlier), this component should be removed.
+
+## Conclusion
+The application is disconnected from the API. Restarting the backend will restore connectivity. Removing `DashboardCriticalCount` will ensure the "Critical Lots" tile respects the backend's aggregated data (52) rather than the client-side calculated count (7).
+
+## Recommended Fix
+1. **Restart Backend**: Run `uvicorn app.main:app --reload --port 8000`.
+2. **Apply Patch**: Remove `DashboardCriticalCount` from `Dashboard.tsx`.

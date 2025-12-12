@@ -48,16 +48,16 @@ const createWindow = () => {
 async function initializeApp() {
   console.log('🚀 GENGRAV Starting...');
   console.log('📡 Testing database connection...');
-  
+
   const dbResult = await db.testConnection();
-  
+
   if (dbResult.success) {
     console.log('✅ Database connection successful!');
     dbConnected = true;
   } else {
     console.error('❌ Database connection failed:', dbResult.error);
     dbConnected = false;
-    
+
     // Show error dialog but continue anyway
     dialog.showMessageBox({
       type: 'warning',
@@ -71,20 +71,21 @@ async function initializeApp() {
       }
     });
   }
-  
+
   createWindow();
 }
 
 app.whenReady().then(initializeApp);
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
-app.on('window-all-closed', () => { 
-  grbl.disconnect(); 
+app.on('window-all-closed', () => {
+  grbl.disconnect();
   db.closePool();
-  if (process.platform !== 'darwin') app.quit(); 
+  if (process.platform !== 'darwin') app.quit();
 });
 
 // ========== Core IPC Handlers ==========
 ipcMain.handle('grbl:listPorts', () => grbl.listPorts());
+ipcMain.handle('grbl:listAllPorts', () => grbl.listAllPorts());
 ipcMain.handle('grbl:connect', (_, { port, baudRate, options }) => {
   return grbl.connect(port, { baudRate, ...options })
     .then(() => ({ success: true, state: grbl.getState() }))
@@ -178,7 +179,7 @@ ipcMain.handle('api:fetchQRCodes', async () => {
       return { success: false, error: 'Database not connected' };
     }
   }
-  
+
   return await db.fetchItems(50);
 });
 
@@ -241,7 +242,7 @@ ipcMain.handle('api:generateQRMatrix', async (_, { data }) => {
     const qrData = await QRCode.create(data, { errorCorrectionLevel: 'M' });
     const modules = qrData.modules;
     const size = modules.size;
-    
+
     // Convert to simple 2D array (1 = black, 0 = white)
     const matrix = [];
     for (let y = 0; y < size; y++) {
@@ -251,9 +252,9 @@ ipcMain.handle('api:generateQRMatrix', async (_, { data }) => {
       }
       matrix.push(row);
     }
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       matrix,
       size,
       moduleCount: size

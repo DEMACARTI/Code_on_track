@@ -1,0 +1,15 @@
+Checking items count...
+Total Items: 1250
+Item UID000001: Vendor 1, Type 'Rail Pad'
+Item UID000002: Vendor 5, Type 'Liner'
+Item UID000003: Vendor 3, Type 'Sleeper'
+Item UID000004: Vendor 4, Type 'ERC Mark IV'
+Item UID000005: Vendor 3, Type 'Rail Pad'
+
+Testing Query:
+Vendor: Acme Steel Pvt Ltd, Count: 217, Components: ERC Mark IV, Liner, Rail Pad, Sleeper
+Vendor: Global Track Systems, Count: 197, Components: ERC Mark IV, Liner, Rail Pad, Sleeper
+Vendor: Prime Components Ltd, Count: 219, Components: ERC Mark IV, Liner, Rail Pad, Sleeper
+Vendor: MetroRail Supplies, Count: 206, Components: ERC Mark IV, Liner, Rail Pad, Sleeper
+Vendor: RailFast Industries, Count: 194, Components: ERC Mark IV, Liner, Rail Pad, Sleeper
+Vendor: SteelForge RailTech, Count: 217, Components: ERC Mark IV, Liner, Rail Pad, Sleeper

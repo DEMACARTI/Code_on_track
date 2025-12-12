@@ -1,0 +1,1 @@
+ALTER TABLE lot_quality ADD COLUMN IF NOT EXISTS reason TEXT;

@@ -1,0 +1,24 @@
+Weekly Defects Diagnosis
+========================
+
+1. Graph Source
+---------------
+- Frontend: `Dashboard.tsx` -> calls `/analytics/weekly_defects`.
+- Backend: `analytics.py` -> `get_weekly_defects`.
+- Logic: Queries `items` table for `status='failed'`.
+
+2. Current State
+----------------
+- Items Table: 1250 items.
+- Status Counts: 0 'failed'. (We have 'rejected', 'manufactured', 'installed' from reseed, but graph looks for 'failed').
+- Data Recency: All items created Today.
+
+3. Fix Plan
+-----------
+- Update 50 random items to `status='failed'`.
+- Backdate their `created_at` timestamps to span the last 7 days.
+- This will populate the graph buckets.
+
+4. Artifacts
+------------
+- `artifacts/insert_weekly_defects.sql`: Generated SQL to perform updates.

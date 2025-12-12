@@ -1,0 +1,71 @@
+diff --git a/backend/app/api/lot_quality.py b/backend/app/api/lot_quality.py
+index abc1234..def5678 100644
+--- a/backend/app/api/lot_quality.py
++++ b/backend/app/api/lot_quality.py
+@@ -1,18 +1,55 @@
+ from fastapi import APIRouter, Depends
+ from sqlalchemy.ext.asyncio import AsyncSession
+ from sqlalchemy import text
+ from app.api.dependencies import get_db
+ from pydantic import BaseModel
+-import asyncio
++from typing import List, Optional
++from datetime import datetime
+ 
+ router = APIRouter()
+ 
+ class QualityJobResponse(BaseModel):
+     status: str
+     stats: dict
+ 
++class LotQualityResponse(BaseModel):
++    """Matches frontend LotQualityData interface exactly."""
++    lot_no: str
++    component: str
++    vendor_id: int
++    item_count: int
++    failed: int
++    rate: float
++    anomaly_score: float
++    reason: Optional[str]
++    status: str  # PASSED, WARNING, FAILED, CRITICAL
++    last_inspected: Optional[str]
++
++def compute_status(failure_rate: float, is_anomalous: bool) -> str:
++    """Compute status based on failure rate and anomaly flag."""
++    if failure_rate >= 0.15 or is_anomalous:
++        return "CRITICAL"
++    elif failure_rate >= 0.10:
++        return "FAILED"
++    elif failure_rate >= 0.05:
++        return "WARNING"
++    return "PASSED"
++
+-@router.get("/", response_model=list)
++@router.get("/", response_model=List[LotQualityResponse])
+ async def get_quality_list(skip: int = 0, limit: int = 20, db: AsyncSession = Depends(get_db)):
+     """Get list of lot quality records."""
+     result = await db.execute(text("SELECT * FROM lot_quality LIMIT :limit OFFSET :skip"), {"limit": limit, "skip": skip})
+-    return result.mappings().all()
++    rows = result.mappings().all()
++    
++    # Convert RowMapping to dict and map field names to match frontend expectations
++    mapped = []
++    for row in rows:
++        r = dict(row)
++        mapped.append(LotQualityResponse(
++            lot_no=r.get("lot_no", ""),
++            component=r.get("component_type", "Unknown"),
++            vendor_id=r.get("vendor_id", 0),
++            item_count=r.get("total_items", 0),
++            failed=r.get("failed_items", 0),
++            rate=round((r.get("failure_rate", 0) or 0) * 100, 2),  # Convert to percentage
++            anomaly_score=r.get("anomaly_score", 0) or 0,
++            reason=r.get("reason") if r.get("reason") else "None",
++            status=compute_status(r.get("failure_rate", 0) or 0, r.get("is_anomalous", False)),
++            last_inspected=r.get("computed_at").isoformat() if r.get("computed_at") else None
++        ))
++    return mapped
+ 
+ @router.post("/run_job", response_model=QualityJobResponse)
+ async def run_quality_job(db: AsyncSession = Depends(get_db)):

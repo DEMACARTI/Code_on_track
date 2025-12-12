@@ -1,0 +1,20 @@
+Environment Report
+==================
+
+Project Root: c:\Users\hp\OneDrive\Desktop\Code_on_track-daksh(ai)\Code_on_track-daksh(without ai)\Code_on_track-daksh\full_website
+
+Database Credentials (detected from .env):
+- URL: postgresql://postgres:****@127.0.0.1:5432/qrtrack
+- Host: 127.0.0.1
+- Port: 5432
+- User: postgres
+- Database: qrtrack
+
+Tools Detected:
+- pg_dump: C:\Program Files\PostgreSQL\18\bin\pg_dump.exe
+- psql: C:\Program Files\PostgreSQL\18\bin\psql.exe
+- python: backend/venv/Scripts/python (3.13.5)
+- alembic: backend/venv/Scripts/alembic (1.17.2)
+- docker: Present (28.5.2)
+
+Status: READY for Phase 1 (Backup)

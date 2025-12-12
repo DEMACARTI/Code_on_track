@@ -1,0 +1,12 @@
+{
+  "items": 2815,
+  "notifications": 10,
+  "job_schedules": "(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation \"job_schedules\" does not exist\n[SQL: SELECT count(*) FROM job_schedules]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+  "item_events": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block\n[SQL: SELECT count(*) FROM item_events]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)",
+  "lot_health": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block\n[SQL: SELECT count(*) FROM lot_health]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)",
+  "users": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block\n[SQL: SELECT count(*) FROM users]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)",
+  "engraving_queue": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block\n[SQL: SELECT count(*) FROM engraving_queue]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)",
+  "engraving_history": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block\n[SQL: SELECT count(*) FROM engraving_history]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)",
+  "vendors": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block\n[SQL: SELECT count(*) FROM vendors]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)",
+  "lot_quality": "(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InFailedSQLTransactionError'>: current transaction is aborted, commands ignored until end of transaction block\n[SQL: SELECT count(*) FROM lot_quality]\n(Background on this error at: https://sqlalche.me/e/20/dbapi)"
+}

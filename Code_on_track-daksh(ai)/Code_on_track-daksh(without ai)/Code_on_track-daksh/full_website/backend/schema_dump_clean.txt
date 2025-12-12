@@ -1,0 +1,12 @@
+id
+uid
+lot_no
+component_type
+vendor_id
+status
+manufacture_date
+installation_date
+failure_date
+warranty_months
+depot
+created_at

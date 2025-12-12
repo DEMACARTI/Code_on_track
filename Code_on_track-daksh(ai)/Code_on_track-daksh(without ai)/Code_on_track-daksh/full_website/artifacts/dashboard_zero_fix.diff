@@ -1,0 +1,43 @@
+diff --git a/frontend/src/pages/Dashboard.tsx b/frontend/src/pages/Dashboard.tsx
+index 1234567..89abcdef 100644
+--- a/frontend/src/pages/Dashboard.tsx
++++ b/frontend/src/pages/Dashboard.tsx
+@@ -27,31 +27,6 @@
+-function DashboardCriticalCount() {
+-    const [criticalCount, setCriticalCount] = useState<number | null>(null);
+-
+-    useEffect(() => {
+-        async function loadCritical() {
+-            try {
+-                const res = await api.get('/lot_health/?risk_level=CRITICAL&limit=1000');
+-                const data = res.data || [];
+-                // Count unique lot numbers
+-                const lotNos = data.map((r: any) => r.lot_no || r.lotNo || r.lotNumber);
+-                const unique = new Set(lotNos.filter(Boolean));
+-                setCriticalCount(unique.size);
+-            } catch (e) {
+-                console.error("Critical lots fetch failed", e);
+-            }
+-        }
+-
+-        loadCritical();
+-        const id = setInterval(loadCritical, 60000);
+-        return () => clearInterval(id);
+-    }, []);
+-
+-    useEffect(() => {
+-        if (criticalCount === null) return;
+-        // Target specifically the h3 inside the card which holds the value
+-        const tile = document.querySelector('.critical-kpi-card h3');
+-        if (tile) tile.textContent = String(criticalCount);
+-    }, [criticalCount]);
+-
+-    return null;
+-}
+-
+ export default function Dashboard() {
+@@ -149,7 +124,6 @@
+         >
+-            <DashboardCriticalCount />
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                 <div>

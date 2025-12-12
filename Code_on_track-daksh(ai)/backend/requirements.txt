@@ -1,0 +1,11 @@
+flask
+flask_sqlalchemy
+psycopg2-binary
+python-dateutil
+flask-cors
+scikit-learn
+pandas
+scipy
+APScheduler
+ortools
+opencv-python-headless

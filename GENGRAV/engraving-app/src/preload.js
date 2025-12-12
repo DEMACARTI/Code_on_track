@@ -7,20 +7,21 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('grbl', {
     // ========== Connection ==========
     listPorts: () => ipcRenderer.invoke('grbl:listPorts'),
+    listAllPorts: () => ipcRenderer.invoke('grbl:listAllPorts'),
     connect: (port, baudRate, options) => ipcRenderer.invoke('grbl:connect', { port, baudRate, options }),
     disconnect: () => ipcRenderer.invoke('grbl:disconnect'),
     getState: () => ipcRenderer.invoke('grbl:getState'),
     getBaudRates: () => ipcRenderer.invoke('grbl:getBaudRates'),
     getConnectionOptions: () => ipcRenderer.invoke('grbl:getConnectionOptions'),
     getGrblVersion: () => ipcRenderer.invoke('grbl:getGrblVersion'),
-    
+
     // ========== Settings ==========
     readSettings: () => ipcRenderer.invoke('grbl:readSettings'),
     writeSetting: (k, v) => ipcRenderer.invoke('grbl:writeSetting', { key: k, value: v }),
     applyDefaults: () => ipcRenderer.invoke('grbl:applyDefaults'),
     enableLaserMode: () => ipcRenderer.invoke('grbl:enableLaserMode'),
     getDefaults: () => ipcRenderer.invoke('grbl:getDefaults'),
-    
+
     // ========== Motion ==========
     home: () => ipcRenderer.invoke('grbl:home'),
     homeAll: () => ipcRenderer.invoke('grbl:homeAll'),
@@ -28,49 +29,49 @@ contextBridge.exposeInMainWorld('grbl', {
     jog: (a, d, f) => ipcRenderer.invoke('grbl:jog', { axis: a, distance: d, feed: f }),
     jogCancel: () => ipcRenderer.invoke('grbl:jogCancel'),
     moveTo: (x, y, f) => ipcRenderer.invoke('grbl:moveTo', { x, y, feed: f }),
-    
+
     // ========== Commands ==========
     send: (c) => ipcRenderer.invoke('grbl:send', c),
     runGCode: (g) => ipcRenderer.invoke('grbl:runGCode', g),
     stop: () => ipcRenderer.invoke('grbl:stop'),
-    
+
     // ========== Laser Control ==========
     laserOn: (p) => ipcRenderer.invoke('grbl:laserOn', p),
     laserOff: () => ipcRenderer.invoke('grbl:laserOff'),
     laserTest: (power, duration) => ipcRenderer.invoke('grbl:laserTest', { power, duration }),
     laserFocus: (p) => ipcRenderer.invoke('grbl:laserFocus', p),
-    
+
     // ========== Safety & Control ==========
     emergencyStop: () => ipcRenderer.invoke('grbl:emergencyStop'),
     resetEstop: () => ipcRenderer.invoke('grbl:resetEstop'),
     unlock: () => ipcRenderer.invoke('grbl:unlock'),
-    
+
     // ========== GRBL 1.1 Real-time Commands ==========
     softReset: () => ipcRenderer.invoke('grbl:softReset'),
     feedHold: () => ipcRenderer.invoke('grbl:feedHold'),
     cycleStart: () => ipcRenderer.invoke('grbl:cycleStart'),
     safetyDoor: () => ipcRenderer.invoke('grbl:safetyDoor'),
-    
+
     // ========== GRBL 1.1 Feed Overrides ==========
     feedOverrideReset: () => ipcRenderer.invoke('grbl:feedOverrideReset'),
     feedOverrideIncrease: (fine) => ipcRenderer.invoke('grbl:feedOverrideIncrease', fine),
     feedOverrideDecrease: (fine) => ipcRenderer.invoke('grbl:feedOverrideDecrease', fine),
-    
+
     // ========== GRBL 1.1 Rapid Overrides ==========
     rapidOverrideReset: () => ipcRenderer.invoke('grbl:rapidOverrideReset'),
     rapidOverride50: () => ipcRenderer.invoke('grbl:rapidOverride50'),
     rapidOverride25: () => ipcRenderer.invoke('grbl:rapidOverride25'),
-    
+
     // ========== GRBL 1.1 Spindle/Laser Overrides ==========
     spindleOverrideReset: () => ipcRenderer.invoke('grbl:spindleOverrideReset'),
     spindleOverrideIncrease: (fine) => ipcRenderer.invoke('grbl:spindleOverrideIncrease', fine),
     spindleOverrideDecrease: (fine) => ipcRenderer.invoke('grbl:spindleOverrideDecrease', fine),
     spindleStop: () => ipcRenderer.invoke('grbl:spindleStop'),
-    
+
     // ========== GRBL 1.1 Coolant ==========
     toggleFloodCoolant: () => ipcRenderer.invoke('grbl:toggleFloodCoolant'),
     toggleMistCoolant: () => ipcRenderer.invoke('grbl:toggleMistCoolant'),
-    
+
     // ========== GRBL 1.1 Info Commands ==========
     getBuildInfo: () => ipcRenderer.invoke('grbl:getBuildInfo'),
     getParserState: () => ipcRenderer.invoke('grbl:getParserState'),
@@ -100,16 +101,16 @@ contextBridge.exposeInMainWorld('api', {
     testConnection: () => ipcRenderer.invoke('db:testConnection'),
     getDbStatus: () => ipcRenderer.invoke('db:getStatus'),
     onDbStatus: (cb) => ipcRenderer.on('db:status', (_, s) => cb(s)),
-    
+
     // QR codes / Items
     fetchQRCodes: () => ipcRenderer.invoke('api:fetchQRCodes'),
     fetchPendingEngravings: () => ipcRenderer.invoke('api:fetchPendingEngravings'),
     fetchQRImage: (uid) => ipcRenderer.invoke('api:fetchQRImage', uid),
-    
+
     // QR Code generation
     generateQRCode: (data, size) => ipcRenderer.invoke('api:generateQRCode', { data, size }),
     generateQRMatrix: (data) => ipcRenderer.invoke('api:generateQRMatrix', { data }),
-    
+
     // Engraving operations
     updateItemStatus: (uid, status) => ipcRenderer.invoke('api:updateItemStatus', { uid, status }),
     recordEngraving: (data) => ipcRenderer.invoke('api:recordEngraving', data)

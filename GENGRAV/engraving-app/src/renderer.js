@@ -24,15 +24,15 @@ const DEFAULT_ENGRAVING_SETTINGS = {
   sizeH: 30,              // Height in mm (default for QR codes)
   offsetX: 0,             // X offset in mm
   offsetY: 0,             // Y offset in mm
-  
+
   // LaserGRBL Image Parameters
   brightness: 0,          // -100 to 100 (0 = no change)
   contrast: 0,            // -100 to 100 (0 = no change)
   whiteClip: 5,           // 0-100 (percentage of white to clip)
-  
+
   // LaserGRBL Conversion Tool
   conversionTool: 'line2line',  // line2line, dithering, vectorize
-  
+
   // Line-to-Line Options
   direction: 'horizontal', // horizontal, vertical, diagonal
   quality: 8,             // Lines per mm (1-20)
@@ -88,7 +88,7 @@ function populateSettingsModal() {
   $('sizeH').value = engravingSettings.sizeH;
   $('offsetX').value = engravingSettings.offsetX;
   $('offsetY').value = engravingSettings.offsetY;
-  
+
   // LaserGRBL-style parameters
   $('brightness').value = engravingSettings.brightness || 0;
   $('contrast').value = engravingSettings.contrast || 0;
@@ -96,12 +96,12 @@ function populateSettingsModal() {
   $('direction').value = engravingSettings.direction || 'horizontal';
   $('quality').value = engravingSettings.quality || 8;
   $('linePreview').checked = engravingSettings.linePreview || false;
-  
+
   // Set conversion tool radio
   const convTool = engravingSettings.conversionTool || 'line2line';
   const radio = document.querySelector(`input[name="conversionTool"][value="${convTool}"]`);
   if (radio) radio.checked = true;
-  
+
   updatePercentages();
   updateSliderDisplays();
 }
@@ -151,7 +151,7 @@ function getSettingsFromModal() {
 async function fetchQRCodes() {
   $('qrList').innerHTML = '<span class="qr-loading">Loading QR codes</span>';
   log('Fetching QR codes from database...');
-  
+
   try {
     const result = await window.api.fetchQRCodes();
     if (result.success && result.items) {
@@ -171,12 +171,12 @@ async function fetchQRCodes() {
 function displayQRCodes(items) {
   const qrList = $('qrList');
   qrList.innerHTML = '';
-  
+
   if (!items || items.length === 0) {
     qrList.innerHTML = '<span class="hint">No QR codes found in database</span>';
     return;
   }
-  
+
   items.forEach(item => {
     const div = document.createElement('div');
     div.className = 'qr-item';
@@ -197,17 +197,17 @@ async function selectQRItem(item, element) {
   document.querySelectorAll('.qr-item.selected').forEach(el => el.classList.remove('selected'));
   element.classList.add('selected');
   selectedQRItem = item;
-  
+
   log(`Selected: ${item.uid} (${item.component_type})`);
-  
+
   // Show loading state
   const preview = $('preview');
   preview.innerHTML = '<span class="qr-loading">Generating QR code...</span>';
-  
+
   try {
     // Generate actual QR code using the qrcode library via main process
     const qrResult = await window.api.generateQRCode(item.uid, 256);
-    
+
     if (qrResult.success && qrResult.dataUrl) {
       // Create image from data URL
       const img = new Image();
@@ -218,18 +218,18 @@ async function selectQRItem(item, element) {
         canvas.height = img.height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
-        
+
         // Store image data for G-code generation
         qrImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         loadedImage = canvas;
-        
+
         // Display in preview
         preview.innerHTML = '';
         canvas.style.maxWidth = '100%';
         canvas.style.maxHeight = '300px';
         canvas.style.imageRendering = 'pixelated';
         preview.appendChild(canvas);
-        
+
         log(`QR code generated: ${canvas.width}x${canvas.height}px`);
         $('generateBtn').disabled = false;
       };
@@ -254,12 +254,12 @@ let qrModuleCount = 0;
  */
 async function generateQRGCode() {
   const { engravingSpeed, laserMode, sMin, sMax, sizeW, sizeH, offsetX, offsetY, quality, direction } = engravingSettings;
-  
+
   if (!selectedQRItem) {
     log('No QR code selected', 'error');
     return null;
   }
-  
+
   // Get QR matrix for precise engraving
   try {
     const matrixResult = await window.api.generateQRMatrix(selectedQRItem.uid);
@@ -275,23 +275,23 @@ async function generateQRGCode() {
     log('Error getting QR matrix: ' + e.message, 'error');
     return null;
   }
-  
+
   if (!qrMatrix || qrMatrix.length === 0) {
     log('No QR matrix data available', 'error');
     return null;
   }
-  
+
   // Calculate dimensions
   const moduleSize = sizeW / qrModuleCount;  // Size of each QR module in mm
-  
+
   // Use quality setting for lines per mm (higher = better quality, slower)
   const linesPerMm = quality || 8;  // Default 8 lines/mm if not set
   const lineSpacing = 1 / linesPerMm;
   const totalLines = Math.ceil(sizeH / lineSpacing);
-  
+
   // Determine scan direction (horizontal or vertical)
   const isHorizontal = (direction || 'horizontal') === 'horizontal';
-  
+
   const lines = [];
   lines.push('; GENGRAV QR Code Engraving (LaserGRBL-style Line2Line)');
   lines.push(`; UID: ${selectedQRItem.uid}`);
@@ -305,33 +305,33 @@ async function generateQRGCode() {
   lines.push('');
   lines.push('G21 ; Units: mm');
   lines.push('G90 ; Absolute positioning');
-  
+
   // Move to start position with laser OFF
   lines.push(`G0 X${offsetX.toFixed(3)} Y${offsetY.toFixed(3)} F${engravingSpeed}`);
-  
+
   // Enable laser mode (M3 for constant power - critical for PWM control)
   lines.push(`${laserMode} S0 ; Laser ON at zero power`);
   lines.push('');
-  
+
   let lineCount = 0;
-  
+
   if (isHorizontal) {
     // Horizontal scanning (Y increases, X sweeps)
     for (let lineIdx = 0; lineIdx < totalLines; lineIdx++) {
       const y = offsetY + (lineIdx * lineSpacing);
-      
+
       // Determine which QR module row this line falls into
       const moduleRow = Math.min(Math.floor((lineIdx * lineSpacing) / moduleSize), qrModuleCount - 1);
       const rowData = qrMatrix[moduleRow];
-      
+
       // Alternate scan direction (bidirectional)
       const leftToRight = (lineIdx % 2 === 0);
-      
+
       // Build segments for this line
       const segments = [];
       let currentSegmentStart = 0;
       let currentIsBlack = rowData[leftToRight ? 0 : qrModuleCount - 1] === 1;
-      
+
       // Scan through each module boundary
       for (let moduleCol = 0; moduleCol <= qrModuleCount; moduleCol++) {
         // Check if this module is black
@@ -342,7 +342,7 @@ async function generateQRGCode() {
           const checkCol = leftToRight ? moduleCol : (qrModuleCount - 1 - moduleCol);
           isBlack = rowData[checkCol] === 1;
         }
-        
+
         // If color changes or end of line, save the segment
         if (isBlack !== currentIsBlack || moduleCol === qrModuleCount) {
           segments.push({
@@ -354,22 +354,22 @@ async function generateQRGCode() {
           currentIsBlack = isBlack;
         }
       }
-      
+
       // Generate G-code for this line
       let currentX = leftToRight ? offsetX : (offsetX + sizeW);
       let laserIsOn = false;
-      
+
       for (const seg of segments) {
         const segStartX = offsetX + (leftToRight ? seg.startModule * moduleSize : sizeW - seg.startModule * moduleSize);
         const segEndX = offsetX + (leftToRight ? seg.endModule * moduleSize : sizeW - seg.endModule * moduleSize);
-        
+
         if (seg.isBlack) {
           // Rapid move to start of segment if needed
           if (Math.abs(currentX - segStartX) > 0.001) {
             lines.push(`G0 X${segStartX.toFixed(3)} Y${y.toFixed(3)} S0`);
             currentX = segStartX;
           }
-          
+
           // Engrave the segment with laser ON
           lines.push(`G1 X${segEndX.toFixed(3)} Y${y.toFixed(3)} F${engravingSpeed} S${sMax}`);
           currentX = segEndX;
@@ -383,25 +383,25 @@ async function generateQRGCode() {
           }
         }
       }
-      
+
       lineCount++;
     }
   } else {
     // Vertical scanning (X increases, Y sweeps)
     for (let lineIdx = 0; lineIdx < totalLines; lineIdx++) {
       const x = offsetX + (lineIdx * lineSpacing);
-      
+
       // Determine which QR module column this line falls into
       const moduleCol = Math.min(Math.floor((lineIdx * lineSpacing) / moduleSize), qrModuleCount - 1);
-      
+
       // Alternate scan direction (bidirectional)
       const topToBottom = (lineIdx % 2 === 0);
-      
+
       // Build segments for this column
       const segments = [];
       let currentSegmentStart = 0;
       let currentIsBlack = qrMatrix[topToBottom ? 0 : qrModuleCount - 1][moduleCol] === 1;
-      
+
       for (let moduleRow = 0; moduleRow <= qrModuleCount; moduleRow++) {
         let isBlack;
         if (moduleRow >= qrModuleCount) {
@@ -410,7 +410,7 @@ async function generateQRGCode() {
           const checkRow = topToBottom ? moduleRow : (qrModuleCount - 1 - moduleRow);
           isBlack = qrMatrix[checkRow][moduleCol] === 1;
         }
-        
+
         if (isBlack !== currentIsBlack || moduleRow === qrModuleCount) {
           segments.push({
             startModule: currentSegmentStart,
@@ -421,21 +421,21 @@ async function generateQRGCode() {
           currentIsBlack = isBlack;
         }
       }
-      
+
       // Generate G-code for this column
       let currentY = topToBottom ? offsetY : (offsetY + sizeH);
       let laserIsOn = false;
-      
+
       for (const seg of segments) {
         const segStartY = offsetY + (topToBottom ? seg.startModule * moduleSize : sizeH - seg.startModule * moduleSize);
         const segEndY = offsetY + (topToBottom ? seg.endModule * moduleSize : sizeH - seg.endModule * moduleSize);
-        
+
         if (seg.isBlack) {
           if (Math.abs(currentY - segStartY) > 0.001) {
             lines.push(`G0 X${x.toFixed(3)} Y${segStartY.toFixed(3)} S0`);
             currentY = segStartY;
           }
-          
+
           lines.push(`G1 X${x.toFixed(3)} Y${segEndY.toFixed(3)} F${engravingSpeed} S${sMax}`);
           currentY = segEndY;
           laserIsOn = true;
@@ -447,19 +447,19 @@ async function generateQRGCode() {
           }
         }
       }
-      
+
       lineCount++;
     }
   }
-  
+
   // Finish up
   lines.push('');
   lines.push('M5 S0 ; Laser off');
   lines.push(`G0 X${offsetX.toFixed(3)} Y${offsetY.toFixed(3)} ; Return to start`);
   lines.push('M2 ; Program end');
-  
+
   log(`Generated ${lineCount} scan lines, ${lines.length} G-code commands (${isHorizontal ? 'horizontal' : 'vertical'})`);
-  
+
   return lines.join('\n');
 }
 
@@ -504,14 +504,14 @@ function updateStatus(s) {
   $('posX').textContent = s.position.x.toFixed(3);
   $('posY').textContent = s.position.y.toFixed(3);
   $('posZ').textContent = s.position.z.toFixed(3);
-  
+
   // GRBL 1.1 state with substate
   let stateText = s.state;
   if (s.subState !== null && s.subState !== undefined) {
     stateText += `:${s.subState}`;
   }
   $('machineState').textContent = stateText;
-  
+
   // Color-code machine state
   const stateEl = $('machineState');
   stateEl.className = '';
@@ -522,7 +522,7 @@ function updateStatus(s) {
   else if (s.state === 'Jog') stateEl.className = 'state-jog';
   else if (s.state === 'Door') stateEl.className = 'state-alarm';
   else if (s.state === 'Home') stateEl.className = 'state-run';
-  
+
   // GRBL 1.1 overrides display
   if (s.overrides) {
     $('feedOvr').textContent = s.overrides.feed || 100;
@@ -549,8 +549,12 @@ function updateSettings(settings) {
 
 // Connection
 $('refreshBtn').addEventListener('click', async () => {
-  log('Scanning for ports...');
-  const ports = await window.grbl.listPorts();
+  const showAll = $('showAllPorts').checked;
+  log(`Scanning for ${showAll ? 'ALL' : 'compatible'} ports...`);
+
+  // Use listAllPorts if checkbox is checked, otherwise use filtered listPorts
+  const ports = showAll ? await window.grbl.listAllPorts() : await window.grbl.listPorts();
+
   const sel = $('portSelect');
   sel.innerHTML = '<option value="">Select Port</option>';
   ports.forEach(p => {
@@ -559,37 +563,45 @@ $('refreshBtn').addEventListener('click', async () => {
     const info = [p.path];
     if (p.manufacturer) info.push(p.manufacturer);
     if (p.vendorId) info.push(`VID:${p.vendorId}`);
+    if (p.productId) info.push(`PID:${p.productId}`);
     opt.textContent = info.join(' - ');
     sel.appendChild(opt);
   });
-  log(`Found ${ports.length} compatible ports`);
+  log(`Found ${ports.length} ${showAll ? 'total' : 'compatible'} ports`);
   if (ports.length === 0) {
-    log('No compatible ports found. Check USB connection.', 'error');
+    log('No ports found. Check USB connection.', 'error');
+  } else if (ports.length > 0 && !showAll) {
+    log('Tip: Check "Show All Ports" to see unrecognized USB devices', 'log');
   }
+});
+
+// Re-scan ports when "Show All Ports" checkbox changes
+$('showAllPorts').addEventListener('change', () => {
+  $('refreshBtn').click();
 });
 
 $('connectBtn').addEventListener('click', async () => {
   const port = $('portSelect').value;
   if (!port) return log('Select a port first', 'error');
-  
+
   const baudRate = parseInt($('baudSelect').value);
   const dtrReset = $('dtrReset').checked;
   const softReset = $('softReset').checked;
-  
+
   log(`Connecting to ${port} @ ${baudRate} baud...`);
   log(`Options: DTR/RTS=${dtrReset}, SoftReset=${softReset}`);
-  
+
   $('connectBtn').disabled = true;
   $('connectBtn').textContent = 'Connecting...';
-  
+
   const r = await window.grbl.connect(port, baudRate, {
     dtrOnConnect: dtrReset,
     rtsOnConnect: dtrReset,
     softResetOnConnect: softReset
   });
-  
-  if (r.success) { 
-    updateConnectionUI(true); 
+
+  if (r.success) {
+    updateConnectionUI(true);
     log('Connected successfully!');
     if (r.state?.version) {
       grblVersion = r.state.version;
@@ -670,7 +682,7 @@ $('laserTestBtn').addEventListener('click', async () => {
 
 $('laserFocusBtn').addEventListener('click', async () => {
   const power = Math.min(parseInt($('testPower').value) * 2, 50); // Very low power for focus
-  log(`Focus mode ON at ${power/10}% - Use laser OFF to stop`, 'warning');
+  log(`Focus mode ON at ${power / 10}% - Use laser OFF to stop`, 'warning');
   await window.grbl.laserFocus(power);
 });
 
@@ -728,7 +740,7 @@ $('fileInput').addEventListener('change', (e) => {
     $('preview').appendChild(img);
     $('generateBtn').disabled = false;
     log(`Loaded: ${file.name}`);
-    
+
     // Auto-calculate size if autoSize is enabled
     img.onload = () => {
       if (engravingSettings.autoSize && img.naturalWidth && img.naturalHeight) {
@@ -812,13 +824,13 @@ $('settingsModal').addEventListener('click', (e) => {
 // Generate G-Code with engraving settings
 $('generateBtn').addEventListener('click', async () => {
   const { engravingSpeed, laserMode, sMin, sMax, sizeW, sizeH, offsetX, offsetY } = engravingSettings;
-  
+
   // If a QR code is selected, use the QR-specific G-code generator
   if (selectedQRItem) {
     log('Generating G-code for QR code engraving...');
     $('generateBtn').disabled = true;
     $('generateBtn').textContent = 'Generating...';
-    
+
     try {
       currentGCode = await generateQRGCode();
       if (currentGCode) {
@@ -833,18 +845,18 @@ $('generateBtn').addEventListener('click', async () => {
     } catch (e) {
       log(`Error generating G-code: ${e.message}`, 'error');
     }
-    
+
     $('generateBtn').disabled = false;
     $('generateBtn').textContent = 'Generate G-code';
     return;
   }
-  
+
   // Otherwise use image-based G-code generation
   if (!loadedImage) {
     log('No image or QR code loaded', 'error');
     return;
   }
-  
+
   // Generate raster G-code for the image
   // This is a simplified version - a full implementation would convert the image to paths
   const lines = [];
@@ -855,25 +867,25 @@ $('generateBtn').addEventListener('click', async () => {
   lines.push('G90 ; Absolute positioning');
   lines.push(`${laserMode} S0 ; Laser mode`);
   lines.push(`G0 X${offsetX} Y${offsetY} ; Move to start position`);
-  
+
   // Simple raster pattern (line by line)
   const lineSpacing = 0.1;  // mm between lines (based on DPI)
   const numLines = Math.ceil(sizeH / lineSpacing);
-  
+
   for (let i = 0; i < Math.min(numLines, 100); i++) {  // Limit for demo
     const y = offsetY + (i * lineSpacing);
     const isEvenLine = i % 2 === 0;
     const xStart = isEvenLine ? offsetX : offsetX + sizeW;
     const xEnd = isEvenLine ? offsetX + sizeW : offsetX;
-    
+
     lines.push(`G0 X${xStart.toFixed(2)} Y${y.toFixed(2)} S${sMin}`);
     lines.push(`G1 X${xEnd.toFixed(2)} Y${y.toFixed(2)} F${engravingSpeed} S${sMax}`);
   }
-  
+
   lines.push('M5 S0 ; Laser off');
   lines.push(`G0 X${offsetX} Y${offsetY} ; Return to start`);
   lines.push('M2 ; Program end');
-  
+
   currentGCode = lines.join('\n');
   $('startBtn').disabled = false;
   $('previewGCodeBtn').disabled = false;
@@ -913,9 +925,9 @@ window.grbl.onSettings(updateSettings);
 window.grbl.onError(e => log(`ERROR: ${e}`, 'error'));
 window.grbl.onEstop(() => log('EMERGENCY STOP ACTIVATED', 'error'));
 window.grbl.onComplete(() => { log('Complete!'); $('stopBtn').disabled = true; setTimeout(() => $('progressBox').hidden = true, 2000); });
-window.grbl.onVersion(v => { 
-  grblVersion = v; 
-  $('versionBadge').textContent = `Ver: ${v || '--'}`; 
+window.grbl.onVersion(v => {
+  grblVersion = v;
+  $('versionBadge').textContent = `Ver: ${v || '--'}`;
   log(`GRBL Version: ${v}`);
 });
 window.grbl.onAlarm(a => {
@@ -931,16 +943,16 @@ $('previewGCodeBtn').addEventListener('click', () => {
     log('No G-code generated yet', 'error');
     return;
   }
-  
+
   $('gcodePreview').value = currentGCode;
   const lines = currentGCode.split('\n').length;
   $('gcodeLineCount').textContent = `${lines} lines`;
-  
+
   // Estimate time based on G-code content
   const g1Moves = (currentGCode.match(/G1 /g) || []).length;
   const estimatedMinutes = Math.ceil(g1Moves * 0.1);
   $('gcodeEstimatedTime').textContent = `Est. time: ~${estimatedMinutes} min`;
-  
+
   $('gcodeModal').hidden = false;
 });
 

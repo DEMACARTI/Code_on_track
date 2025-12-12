@@ -1,0 +1,12 @@
+diff --git a/backend/app/api/analytics.py b/backend/app/api/analytics.py
+index abcdef1..2345678 100644
+--- a/backend/app/api/analytics.py
++++ b/backend/app/api/analytics.py
+@@ -26,7 +26,7 @@
+ 
+     # 2. Critical Lots (Lots with High/Critical risk)
+-    result_critical = await db.execute(text("SELECT count(DISTINCT lot_no) FROM lot_health WHERE risk_level IN ('CRITICAL', 'HIGH')"))
++    result_critical = await db.execute(text("SELECT count(DISTINCT lot_no) FROM lot_health WHERE risk_level = 'CRITICAL'"))
+     critical_lots = result_critical.scalar() or 0
+ 
+     # 3. Analyzed Lots (Total lots in lot_health)

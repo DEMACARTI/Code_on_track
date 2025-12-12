@@ -1,0 +1,26 @@
+Vendor Chart & Dashboard Cleanup
+================================
+
+Status: COMPLETED
+
+1. Changes
+----------
+- Modified `VendorReliabilityTable.tsx`:
+    - Cleaned chart Tooltip to ONLY show "Score".
+    - Added Y-Axis label "Reliability Score".
+    - Removed any implied multi-metric clutter from the bar chart view.
+- Modified `Dashboard.tsx`:
+    - Moved Vendor Reliability Table (col-span-8) to Row 2, left side.
+    - Moved System Activity (col-span-4) to Row 2, right side.
+    - Result: Clean 2x2 grid of analytics widgets.
+
+2. Visual Layout
+----------------
+Row 1: [Weekly Defects Trend] [Health Risk Distribution]
+Row 2: [Vendor Reliability Comparison] [System Activity]
+
+3. Verification
+---------------
+- Screenshots captured in `artifacts/`:
+    - `dashboard_layout.png`: Shows the aligned grid.
+    - `vendor_chart_clean_tooltip.png`: Shows simplified tooltip.

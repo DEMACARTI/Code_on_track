@@ -1,0 +1,3 @@
+Dashboard Page: c:/Users/hp/OneDrive/Desktop/Code_on_track-daksh(ai)/Code_on_track-daksh(without ai)/Code_on_track-daksh/full_website/frontend/src/pages/Dashboard.tsx
+Vendor Comparison Table: c:/Users/hp/OneDrive/Desktop/Code_on_track-daksh(ai)/Code_on_track-daksh(without ai)/Code_on_track-daksh/full_website/frontend/src/components/VendorReliabilityTable.tsx
+Current Chart Component: Inside VendorReliabilityTable.tsx (lines 114-148)

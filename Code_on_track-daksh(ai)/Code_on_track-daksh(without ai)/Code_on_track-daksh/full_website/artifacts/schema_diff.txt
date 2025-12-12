@@ -1,0 +1,17 @@
+Schema Diff Report
+==================
+
+Table: vendors
+--------------
+Missing Columns (Model vs DB):
+- contact_info (JSON/JSONB): Present in Model, Missing in DB.
+- metadata (JSON/JSONB): Present in Model (as metadata_), Missing in DB.
+
+Table: lot_quality / lot_health
+-------------------------------
+- No SQLAlchemy ORM models found (using raw SQL in routers).
+- Cannot verify schema against code.
+- Assuming DB state is authoritative for now.
+
+Recommendation:
+- Apply migration to add missing `vendors` columns.

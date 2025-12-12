@@ -1,0 +1,433 @@
+﻿{
+    "GET /lot-quality?limit=50":  {
+                                      "error":  "The remote server returned an error: (404) Not Found.",
+                                      "status":  404
+                                  },
+    "GET /items":  {
+                       "body":  {
+                                    "items":  [
+                                                  {
+                                                      "id":  2591,
+                                                      "uid":  "ITEM-5587-99",
+                                                      "component_type":  "Rail Pad",
+                                                      "lot_no":  "LOT0008",
+                                                      "vendor_id":  5,
+                                                      "status":  "failed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-01-06T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:45:31",
+                                                      "vendor":  {
+                                                                     "name":  "RailFast Industries",
+                                                                     "id":  5,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-005"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3069,
+                                                      "uid":  "ITEM-2095-33",
+                                                      "component_type":  "ERC",
+                                                      "lot_no":  "LOT0051",
+                                                      "vendor_id":  1,
+                                                      "status":  "failed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-09-22T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:45:31",
+                                                      "vendor":  {
+                                                                     "name":  "Acme Steel Pvt Ltd",
+                                                                     "id":  1,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-001"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3250,
+                                                      "uid":  "ITEM-9183-19",
+                                                      "component_type":  "Liner",
+                                                      "lot_no":  "LOT0068",
+                                                      "vendor_id":  4,
+                                                      "status":  "failed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-05-18T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:45:31",
+                                                      "vendor":  {
+                                                                     "name":  "MetroRail Supplies",
+                                                                     "id":  4,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-004"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3124,
+                                                      "uid":  "ITEM-5528-98",
+                                                      "component_type":  "ERC",
+                                                      "lot_no":  "LOT0056",
+                                                      "vendor_id":  5,
+                                                      "status":  "failed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2024-12-25T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:45:31",
+                                                      "vendor":  {
+                                                                     "name":  "RailFast Industries",
+                                                                     "id":  5,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-005"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3324,
+                                                      "uid":  "ITEM-2003-43",
+                                                      "component_type":  "Liner",
+                                                      "lot_no":  "LOT0074",
+                                                      "vendor_id":  1,
+                                                      "status":  "failed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-10-21T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:45:31",
+                                                      "vendor":  {
+                                                                     "name":  "Acme Steel Pvt Ltd",
+                                                                     "id":  1,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-001"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3751,
+                                                      "uid":  "ITEM-2958-68",
+                                                      "component_type":  "Rail Pad",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  3,
+                                                      "status":  "failed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-04-01T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:45:31",
+                                                      "vendor":  {
+                                                                     "name":  "Prime Components Ltd",
+                                                                     "id":  3,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-003"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3760,
+                                                      "uid":  "ITEM-2257-48",
+                                                      "component_type":  "Rail Pad",
+                                                      "lot_no":  "LOT0114",
+                                                      "vendor_id":  3,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-11-28T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014286",
+                                                      "vendor":  {
+                                                                     "name":  "Prime Components Ltd",
+                                                                     "id":  3,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-003"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3759,
+                                                      "uid":  "ITEM-9007-48",
+                                                      "component_type":  "ERC",
+                                                      "lot_no":  "LOT0114",
+                                                      "vendor_id":  3,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-02-27T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014268",
+                                                      "vendor":  {
+                                                                     "name":  "Prime Components Ltd",
+                                                                     "id":  3,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-003"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3758,
+                                                      "uid":  "ITEM-2435-49",
+                                                      "component_type":  "ERC",
+                                                      "lot_no":  "LOT0114",
+                                                      "vendor_id":  3,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-09-29T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014250",
+                                                      "vendor":  {
+                                                                     "name":  "Prime Components Ltd",
+                                                                     "id":  3,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-003"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3757,
+                                                      "uid":  "ITEM-1690-99",
+                                                      "component_type":  "ERC",
+                                                      "lot_no":  "LOT0114",
+                                                      "vendor_id":  3,
+                                                      "status":  "installed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-01-19T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014231",
+                                                      "vendor":  {
+                                                                     "name":  "Prime Components Ltd",
+                                                                     "id":  3,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-003"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3756,
+                                                      "uid":  "ITEM-5321-42",
+                                                      "component_type":  "Sleeper",
+                                                      "lot_no":  "LOT0114",
+                                                      "vendor_id":  6,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-05-18T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014213",
+                                                      "vendor":  {
+                                                                     "name":  "SteelForge RailTech",
+                                                                     "id":  6,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-006"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3755,
+                                                      "uid":  "ITEM-5693-32",
+                                                      "component_type":  "Rail Pad",
+                                                      "lot_no":  "LOT0114",
+                                                      "vendor_id":  5,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-04-21T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014194",
+                                                      "vendor":  {
+                                                                     "name":  "RailFast Industries",
+                                                                     "id":  5,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-005"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3754,
+                                                      "uid":  "ITEM-7465-12",
+                                                      "component_type":  "Rail Pad",
+                                                      "lot_no":  "LOT0114",
+                                                      "vendor_id":  4,
+                                                      "status":  "installed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-11-14T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014176",
+                                                      "vendor":  {
+                                                                     "name":  "MetroRail Supplies",
+                                                                     "id":  4,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-004"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3753,
+                                                      "uid":  "ITEM-8681-16",
+                                                      "component_type":  "Sleeper",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  4,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2024-12-15T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014156",
+                                                      "vendor":  {
+                                                                     "name":  "MetroRail Supplies",
+                                                                     "id":  4,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-004"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3752,
+                                                      "uid":  "ITEM-1602-29",
+                                                      "component_type":  "ERC",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  4,
+                                                      "status":  "rejected",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-06-04T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014137",
+                                                      "vendor":  {
+                                                                     "name":  "MetroRail Supplies",
+                                                                     "id":  4,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-004"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3750,
+                                                      "uid":  "ITEM-6549-43",
+                                                      "component_type":  "Rail Pad",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  6,
+                                                      "status":  "installed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-12-05T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014102",
+                                                      "vendor":  {
+                                                                     "name":  "SteelForge RailTech",
+                                                                     "id":  6,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-006"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3749,
+                                                      "uid":  "ITEM-5977-39",
+                                                      "component_type":  "Liner",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  5,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-11-28T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014085",
+                                                      "vendor":  {
+                                                                     "name":  "RailFast Industries",
+                                                                     "id":  5,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-005"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3748,
+                                                      "uid":  "ITEM-8192-29",
+                                                      "component_type":  "Liner",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  3,
+                                                      "status":  "installed",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-10-15T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014068",
+                                                      "vendor":  {
+                                                                     "name":  "Prime Components Ltd",
+                                                                     "id":  3,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-003"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3747,
+                                                      "uid":  "ITEM-8833-16",
+                                                      "component_type":  "ERC",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  3,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-03-22T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014051",
+                                                      "vendor":  {
+                                                                     "name":  "Prime Components Ltd",
+                                                                     "id":  3,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-003"
+                                                                 }
+                                                  },
+                                                  {
+                                                      "id":  3746,
+                                                      "uid":  "ITEM-7599-84",
+                                                      "component_type":  "Liner",
+                                                      "lot_no":  "LOT0113",
+                                                      "vendor_id":  5,
+                                                      "status":  "manufactured",
+                                                      "warranty_months":  null,
+                                                      "manufacture_date":  "2025-03-29T00:00:00",
+                                                      "installation_date":  null,
+                                                      "failure_date":  null,
+                                                      "depot":  null,
+                                                      "created_at":  "2025-12-11T17:38:03.014034",
+                                                      "vendor":  {
+                                                                     "name":  "RailFast Industries",
+                                                                     "id":  5,
+                                                                     "is_active":  true,
+                                                                     "vendor_code":  "V-005"
+                                                                 }
+                                                  }
+                                              ],
+                                    "total":  2815,
+                                    "page":  1,
+                                    "page_size":  20,
+                                    "total_pages":  141
+                                },
+                       "status":  200
+                   },
+    "GET /api/db-health":  {
+                               "body":  {
+                                            "status":  "ok",
+                                            "database":  "connected",
+                                            "items_count":  2815
+                                        },
+                               "status":  200
+                           },
+    "GET /lot-quality":  {
+                             "error":  "The remote server returned an error: (404) Not Found.",
+                             "status":  404
+                         },
+    "GET /lot-health":  {
+                            "error":  "The remote server returned an error: (404) Not Found.",
+                            "status":  404
+                        }
+}

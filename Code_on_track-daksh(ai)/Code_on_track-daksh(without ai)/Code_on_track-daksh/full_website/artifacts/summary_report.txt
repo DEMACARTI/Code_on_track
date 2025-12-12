@@ -1,0 +1,31 @@
+Summary Report for Schema Fix
+===============================
+
+Status: READY FOR APPROVAL
+
+1. Backup verification
+----------------------
+- Backup File: backups/qrtrack_2025-12-11.dump
+- Verified: Yes (Size > 0)
+
+2. Schema Diff
+--------------
+- Table 'vendors': Missing columns 'contact_info' and 'metadata'.
+- Impact: API endpoints (/vendors) are crashing with 500 Internal Server Error.
+- Proposed Fix: Add missing columns via SQL.
+
+3. Migration Plan
+-----------------
+- File: artifacts/migration_candidate.sql
+- Content:
+    ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_info JSONB;
+    ALTER TABLE vendors ADD COLUMN IF NOT EXISTS metadata JSONB;
+
+4. Rollback Plan
+----------------
+- If failure happens:
+  pg_restore --clean --if-exists -d qrtrack backups/qrtrack_2025-12-11.dump
+
+NEXT STEP:
+To apply this fix, please reply with EXACTLY:
+APPROVE MIGRATION & APPLY

@@ -1,0 +1,15 @@
+=== API Base URL Verification ===
+Generated: 2025-12-12T10:08:00+05:30
+
+== Frontend axios configuration ==
+File: frontend/src/api/axios.ts
+Line 4: const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+
+== VITE_API_BASE Environment Variable ==
+Not explicitly set in frontend .env files - defaults to http://localhost:8000
+
+== Backend Server ==
+Running on: http://localhost:8000
+
+== Conclusion ==
+API base URL is correctly configured. Frontend correctly points to backend.

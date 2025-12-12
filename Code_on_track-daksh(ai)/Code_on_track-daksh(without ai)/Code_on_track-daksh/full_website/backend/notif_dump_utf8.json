@@ -1,0 +1,94 @@
+[
+  {
+    "id": 1,
+    "title": "7-30 days",
+    "msg": "1 items expiring in 7-30 days",
+    "metadata": {
+      "bucket": "7-30 days",
+      "bucket_key": "warning",
+      "total_items": 1,
+      "date_range": {
+        "start_date": "2025-12-16",
+        "end_date": "2026-01-08"
+      },
+      "by_lot": [
+        {
+          "lot_no": "LOT-52",
+          "count": 1,
+          "component_types": [
+            "ERC"
+          ],
+          "depots": [
+            "Main Depot"
+          ]
+        }
+      ],
+      "top_components": [
+        {
+          "ERC": 1
+        }
+      ],
+      "days_remaining_min": 7,
+      "days_remaining_max": 30
+    }
+  },
+  {
+    "id": 2,
+    "title": "30-90 days",
+    "msg": "3 items expiring in 30-90 days",
+    "metadata": {
+      "bucket": "30-90 days",
+      "bucket_key": "upcoming",
+      "total_items": 3,
+      "date_range": {
+        "start_date": "2026-01-08",
+        "end_date": "2026-03-09"
+      },
+      "by_lot": [
+        {
+          "lot_no": "LOT-62",
+          "count": 1,
+          "component_types": [
+            "Rail Pads"
+          ],
+          "depots": [
+            "Main Depot"
+          ]
+        },
+        {
+          "lot_no": "LOT-65",
+          "count": 1,
+          "component_types": [
+            "Sleepers"
+          ],
+          "depots": [
+            "Main Depot"
+          ]
+        },
+        {
+          "lot_no": "LOT-54",
+          "count": 1,
+          "component_types": [
+            "ERC"
+          ],
+          "depots": [
+            "Main Depot"
+          ]
+        }
+      ],
+      "top_components": [
+        {
+          "Rail Pads": 1
+        },
+        {
+          "Sleepers": 1
+        },
+        {
+          "ERC": 1
+        }
+      ],
+      "days_remaining_min": 30,
+      "days_remaining_max": 90
+    }
+  }
+]
