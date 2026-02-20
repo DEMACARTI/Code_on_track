@@ -1,16 +1,14 @@
 
 #Project Description – Smart India Hackathon 2025 (PS-25021)
 
-Our Smart India Hackathon 2025 winning solution is designed to enhance traceability, lifecycle monitoring, and inspection efficiency of critical manufacturing components used across government infrastructure systems.
+Our Smart India Hackathon 2025 winning solution focuses on improving traceability, lifecycle monitoring, and inspection efficiency of critical manufacturing components used in infrastructure systems through an integrated hardware-software framework.
 
-The proposed system consists of both hardware and software components working in integration to create an end-to-end part identification and monitoring framework.
+The hardware component of the system consists of an Arduino-based CNC laser engraving unit that utilizes dual NEMA 17 stepper motors for precise positioning and automated QR code engraving on machine parts during the manufacturing stage. This enables permanent marking of components directly at the source, eliminating the need for external tagging and reducing risks associated with manual identification methods.
 
-On the hardware side, we developed an Arduino-based CNC laser engraving system utilizing dual NEMA 17 stepper motors for precise positioning and automated QR code engraving on manufactured components. This enables permanent marking of machine parts directly during the manufacturing stage, eliminating dependency on external tagging or manual labeling methods.
+The software component is divided into three major modules. The first module is a QR generation platform that creates unique QR codes containing essential metadata such as vendor details, manufacturing date, expiry information, and a unique identification number linked to a centralized database. These generated QR codes are automatically queued and transmitted to the engraving module, where they are seamlessly engraved onto the respective components using the CNC system.
 
-On the software side, the system is divided into three major modules. The first module is a QR generation platform that creates unique QR codes for each component containing essential metadata such as vendor information, manufacturing date, expiry details, and a unique identification number linked to a centralized database. The generated QR codes are automatically queued and transmitted to the engraving module, where they are physically engraved onto the respective parts using the CNC laser system.
+The second module is a centralized web platform developed for ministry-level monitoring, enabling authorized personnel to retrieve vendor and part-specific details through the unique ID. The platform also integrates a predictive analytics model capable of estimating the expected expiry timeline of components to support proactive maintenance and replacement planning.
 
-The second module is a centralized web platform developed for ministry-level access, enabling authorized personnel to retrieve vendor and component details by entering the unique ID. The platform also integrates a predictive analytics model capable of estimating component expiry timelines to support proactive maintenance planning.
+The third module is a mobile inspection application designed for field inspection teams. By scanning the engraved QR code, inspectors can update the real-time operational status of components such as installation, repair, maintenance, or discard. Additionally, the application incorporates an AI-based visual inspection model that utilizes camera input to automatically detect the type of component (e.g., sleeper, liner, rail pad) and assess its condition, assisting in determining whether the part is serviceable or requires maintenance.
 
-The third module is a mobile inspection application developed for field inspection teams. By scanning the engraved QR codes, inspectors can update the real-time status of components, including installation, repair, maintenance, or discard. Additionally, the application incorporates an AI-based visual inspection model that utilizes camera input to assess component condition and determine whether maintenance or replacement is required.
-
-The proposed solution provides a scalable, low-cost, and automated approach for improving asset traceability, maintenance scheduling, and inspection workflows across manufacturing and infrastructure systems.
+The proposed solution provides a scalable, cost-effective, and automated approach for enhancing asset traceability and maintenance workflows across infrastructure systems.
